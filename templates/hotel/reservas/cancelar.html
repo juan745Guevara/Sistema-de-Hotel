@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Cancelar Reserva - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h3><i class="bi bi-x-circle"></i> Cancelar Reserva</h3>
+            </div>
+            <div class="card-body">
+                <p>¿Está seguro de que desea cancelar la siguiente reserva?</p>
+                <div class="alert alert-info">
+                    <strong>Reserva #{{ reserva.id }}</strong><br>
+                    Huésped: {{ reserva.huesped.nombre_completo }}<br>
+                    Habitación: {{ reserva.habitacion.numero }}<br>
+                    Fechas: {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> Confirmar Cancelación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

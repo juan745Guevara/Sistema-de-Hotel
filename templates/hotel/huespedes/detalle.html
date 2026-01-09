@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle Huésped - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-person"></i> {{ huesped.nombre_completo }}</h1>
+            <a href="{% url 'editar_huesped' huesped.id %}" class="btn btn-warning">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Información Personal</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ huesped.nombre }}</p>
+                <p><strong>Apellidos:</strong> {{ huesped.apellidos }}</p>
+                <p><strong>Email:</strong> {{ huesped.email }}</p>
+                <p><strong>Teléfono:</strong> {{ huesped.telefono }}</p>
+                <p><strong>Documento de Identidad:</strong> {{ huesped.documento_identidad }}</p>
+                <p><strong>Nacionalidad:</strong> {{ huesped.nacionalidad }}</p>
+                {% if huesped.fecha_nacimiento %}
+                <p><strong>Fecha de Nacimiento:</strong> {{ huesped.fecha_nacimiento }}</p>
+                {% endif %}
+                {% if huesped.preferencias %}
+                <p><strong>Preferencias:</strong> {{ huesped.preferencias }}</p>
+                {% endif %}
+                {% if huesped.notas %}
+                <p><strong>Notas:</strong> {{ huesped.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Estadísticas</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Total de Reservas:</strong> {{ total_reservas }}</p>
+                <p><strong>Reservas Activas:</strong> {{ reservas_activas }}</p>
+                <p><strong>Total de Noches:</strong> {{ total_noches }}</p>
+                <p><strong>Fecha de Registro:</strong> {{ huesped.fecha_registro|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Historial de Reservas</h5>
+            </div>
+            <div class="card-body">
+                {% if reservas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Habitación</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Noches</th>
+                                <th>Precio</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in reservas %}
+                            <tr>
+                                <td>#{{ reserva.id }}</td>
+                                <td>{{ reserva.habitacion.numero }}</td>
+                                <td>{{ reserva.fecha_entrada }}</td>
+                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>{{ reserva.numero_noches }}</td>
+                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>
+                                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
+                                        {{ reserva.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Este huésped no tiene reservas registradas.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'lista_huespedes' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Huéspedes
+        </a>
+    </div>
+</div>
+{% endblock %}
+

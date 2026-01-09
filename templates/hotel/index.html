@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-door-open"></i> Habitaciones</h5>
+                <h2>{{ total_habitaciones }}</h2>
+                <p class="card-text">Total de habitaciones</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-check-circle"></i> Disponibles</h5>
+                <h2>{{ habitaciones_disponibles }}</h2>
+                <p class="card-text">Habitaciones disponibles</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-calendar-check"></i> Reservas Hoy</h5>
+                <h2>{{ reservas_hoy }}</h2>
+                <p class="card-text">Check-ins pendientes: {{ checkins_pendientes }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-box-arrow-right"></i> Check-outs</h5>
+                <h2>{{ checkouts_hoy }}</h2>
+                <p class="card-text">Check-outs programados hoy</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Reservas Recientes</h5>
+            </div>
+            <div class="card-body">
+                {% if reservas_recientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Huésped</th>
+                                <th>Habitación</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in reservas_recientes %}
+                            <tr>
+                                <td>#{{ reserva.id }}</td>
+                                <td>{{ reserva.huesped.nombre_completo }}</td>
+                                <td>{{ reserva.habitacion.numero }}</td>
+                                <td>{{ reserva.fecha_entrada }}</td>
+                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>
+                                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
+                                        {{ reserva.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay reservas recientes.</p>
+                {% endif %}
+                <a href="{% url 'lista_reservas' %}" class="btn btn-primary mt-3">Ver todas las reservas</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

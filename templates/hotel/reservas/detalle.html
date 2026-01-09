@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle Reserva - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-calendar-check"></i> Reserva #{{ reserva.id }}</h1>
+            <div>
+                <a href="{% url 'editar_reserva' reserva.id %}" class="btn btn-warning">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+                {% if reserva.estado != 'cancelada' and reserva.estado != 'checkout' %}
+                <a href="{% url 'cancelar_reserva' reserva.id %}" class="btn btn-danger">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Información de la Reserva</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Estado:</strong> 
+                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'checkout' %}primary{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
+                        {{ reserva.get_estado_display }}
+                    </span>
+                </p>
+                <p><strong>Huésped:</strong> <a href="{% url 'detalle_huesped' reserva.huesped.id %}">{{ reserva.huesped.nombre_completo }}</a></p>
+                <p><strong>Habitación:</strong> <a href="{% url 'detalle_habitacion' reserva.habitacion.id %}">{{ reserva.habitacion.numero }} - {{ reserva.habitacion.get_tipo_display }}</a></p>
+                <p><strong>Fecha de Entrada:</strong> {{ reserva.fecha_entrada }}</p>
+                <p><strong>Fecha de Salida:</strong> {{ reserva.fecha_salida }}</p>
+                <p><strong>Número de Noches:</strong> {{ reserva.numero_noches }}</p>
+                <p><strong>Número de Huéspedes:</strong> {{ reserva.numero_huespedes }}</p>
+                <p><strong>Precio Total:</strong> ${{ reserva.precio_total|floatformat:2 }}</p>
+                {% if reserva.notas %}
+                <p><strong>Notas:</strong> {{ reserva.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        {% if not checkin and reserva.estado != 'cancelada' and reserva.estado != 'checkout' %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-box-arrow-in-right"></i> Check-in</h5>
+            </div>
+            <div class="card-body">
+                <p>Esta reserva está lista para check-in.</p>
+                <a href="{% url 'realizar_checkin' reserva.id %}" class="btn btn-info">
+                    <i class="bi bi-box-arrow-in-right"></i> Realizar Check-in
+                </a>
+            </div>
+        </div>
+        {% elif checkin %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-check-circle"></i> Check-in Realizado</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Fecha y Hora:</strong> {{ checkin.fecha_hora }}</p>
+                <p><strong>Empleado:</strong> {{ checkin.empleado|default:"N/A" }}</p>
+                <p><strong>Documentos Recibidos:</strong> {% if checkin.documentos_recibidos %}Sí{% else %}No{% endif %}</p>
+                {% if checkin.deposito > 0 %}
+                <p><strong>Depósito:</strong> ${{ checkin.deposito|floatformat:2 }}</p>
+                {% endif %}
+                {% if checkin.notas %}
+                <p><strong>Notas:</strong> {{ checkin.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if checkin and not checkout and reserva.estado != 'cancelada' %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-white">
+                <h5><i class="bi bi-box-arrow-right"></i> Check-out</h5>
+            </div>
+            <div class="card-body">
+                <p>Esta reserva está lista para check-out.</p>
+                <a href="{% url 'realizar_checkout' reserva.id %}" class="btn btn-warning">
+                    <i class="bi bi-box-arrow-right"></i> Realizar Check-out
+                </a>
+            </div>
+        </div>
+        {% elif checkout %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-check-circle-fill"></i> Check-out Realizado</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Fecha y Hora:</strong> {{ checkout.fecha_hora }}</p>
+                <p><strong>Empleado:</strong> {{ checkout.empleado|default:"N/A" }}</p>
+                <p><strong>Total Pagado:</strong> ${{ checkout.total_pagado|floatformat:2 }}</p>
+                <p><strong>Método de Pago:</strong> {{ checkout.get_metodo_pago_display }}</p>
+                {% if checkout.calificacion %}
+                <p><strong>Calificación:</strong> {{ checkout.calificacion }}/5</p>
+                {% endif %}
+                {% if checkout.danos_observados %}
+                <p><strong>Daños Observados:</strong> {{ checkout.danos_observados }}</p>
+                {% endif %}
+                {% if checkout.notas %}
+                <p><strong>Notas:</strong> {{ checkout.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <a href="{% url 'lista_reservas' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Reservas
+        </a>
+    </div>
+</div>
+{% endblock %}
+

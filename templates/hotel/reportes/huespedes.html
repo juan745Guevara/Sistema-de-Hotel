@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Reporte de Huéspedes - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-people"></i> Reporte de Huéspedes</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5>Total Huéspedes</h5>
+                <h2>{{ total_huespedes }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5>Huéspedes Activos</h5>
+                <h2>{{ huespedes_activos }}</h2>
+                <p class="mb-0">Con reservas activas</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Top 10 Huéspedes por Número de Reservas</h5>
+            </div>
+            <div class="card-body">
+                {% if top_huespedes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Huésped</th>
+                                <th>Total Reservas</th>
+                                <th>Total Noches</th>
+                                <th>Total Gastado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_huespedes %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ item.nombre_completo }}</td>
+                                <td>{{ item.total_reservas }}</td>
+                                <td>{{ item.total_noches }}</td>
+                                <td>${{ item.total_gastado|floatformat:2 }}</td>
+                                <td>
+                                    <a href="{% url 'detalle_huesped' item.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay datos disponibles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Nacionalidades Más Comunes</h5>
+            </div>
+            <div class="card-body">
+                {% if nacionalidades %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nacionalidad</th>
+                                <th>Cantidad de Huéspedes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in nacionalidades %}
+                            <tr>
+                                <td>{{ item.nacionalidad }}</td>
+                                <td>{{ item.cantidad }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay datos disponibles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'reportes' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Reportes
+        </a>
+    </div>
+</div>
+{% endblock %}
+

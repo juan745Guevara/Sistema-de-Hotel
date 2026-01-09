@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Check-outs - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-box-arrow-right"></i> Check-outs</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Filtros</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">Fecha Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Fecha Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block w-100">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if checkouts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reserva</th>
+                                <th>Huésped</th>
+                                <th>Habitación</th>
+                                <th>Fecha y Hora</th>
+                                <th>Total Pagado</th>
+                                <th>Método de Pago</th>
+                                <th>Calificación</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for checkout in checkouts %}
+                            <tr>
+                                <td>#{{ checkout.reserva.id }}</td>
+                                <td>{{ checkout.reserva.huesped.nombre_completo }}</td>
+                                <td>{{ checkout.reserva.habitacion.numero }}</td>
+                                <td>{{ checkout.fecha_hora }}</td>
+                                <td>${{ checkout.total_pagado|floatformat:2 }}</td>
+                                <td>{{ checkout.get_metodo_pago_display }}</td>
+                                <td>
+                                    {% if checkout.calificacion %}
+                                    {{ checkout.calificacion }}/5
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'detalle_reserva' checkout.reserva.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No se encontraron check-outs.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

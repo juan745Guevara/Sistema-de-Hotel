@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Habitaciones - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-door-open"></i> Habitaciones</h1>
+            <div>
+                <a href="{% url 'disponibilidad_habitaciones' %}" class="btn btn-info me-2">
+                    <i class="bi bi-calendar-range"></i> Ver Disponibilidad
+                </a>
+                <a href="{% url 'crear_habitacion' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nueva Habitación
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Filtros</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Estado</label>
+                        <select name="estado" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="disponible" {% if estado_actual == 'disponible' %}selected{% endif %}>Disponible</option>
+                            <option value="ocupada" {% if estado_actual == 'ocupada' %}selected{% endif %}>Ocupada</option>
+                            <option value="reservada" {% if estado_actual == 'reservada' %}selected{% endif %}>Reservada</option>
+                            <option value="mantenimiento" {% if estado_actual == 'mantenimiento' %}selected{% endif %}>Mantenimiento</option>
+                            <option value="limpieza" {% if estado_actual == 'limpieza' %}selected{% endif %}>Limpieza</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tipo</label>
+                        <select name="tipo" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="sencilla" {% if tipo_actual == 'sencilla' %}selected{% endif %}>Sencilla</option>
+                            <option value="doble" {% if tipo_actual == 'doble' %}selected{% endif %}>Doble</option>
+                            <option value="suite" {% if tipo_actual == 'suite' %}selected{% endif %}>Suite</option>
+                            <option value="presidencial" {% if tipo_actual == 'presidencial' %}selected{% endif %}>Presidencial</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block w-100">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% for habitacion in habitaciones %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-{% if habitacion.estado == 'disponible' %}success{% elif habitacion.estado == 'ocupada' %}danger{% elif habitacion.estado == 'reservada' %}warning{% elif habitacion.estado == 'mantenimiento' %}dark{% else %}info{% endif %} text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-door-open"></i> Habitación {{ habitacion.numero }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Tipo:</strong> {{ habitacion.get_tipo_display }}</p>
+                <p><strong>Estado:</strong> 
+                    <span class="badge bg-{% if habitacion.estado == 'disponible' %}success{% elif habitacion.estado == 'ocupada' %}danger{% elif habitacion.estado == 'reservada' %}warning{% elif habitacion.estado == 'mantenimiento' %}dark{% else %}info{% endif %}">
+                        {{ habitacion.get_estado_display }}
+                    </span>
+                </p>
+                <p><strong>Capacidad:</strong> {{ habitacion.capacidad }} personas</p>
+                <p><strong>Precio/Noche:</strong> ${{ habitacion.precio_noche|floatformat:2 }}</p>
+                <p><strong>Reservas Activas:</strong> {{ habitacion.reservas_activas }}</p>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'detalle_habitacion' habitacion.id %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-eye"></i> Ver Detalles
+                </a>
+                <a href="{% url 'editar_habitacion' habitacion.id %}" class="btn btn-warning btn-sm">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">No se encontraron habitaciones.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

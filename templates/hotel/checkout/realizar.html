@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Realizar Check-out - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-box-arrow-right"></i> Realizar Check-out</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Información de la Reserva</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Reserva #{{ reserva.id }}</strong></p>
+                <p><strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}</p>
+                <p><strong>Habitación:</strong> {{ reserva.habitacion.numero }}</p>
+                <p><strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}</p>
+                <p><strong>Noches:</strong> {{ reserva.numero_noches }}</p>
+                <p><strong>Total a Pagar:</strong> ${{ reserva.precio_total|floatformat:2 }}</p>
+                {% if reserva.checkin %}
+                <p><strong>Depósito:</strong> ${{ reserva.checkin.deposito|floatformat:2 }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Datos del Check-out</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Realizar Check-out
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
