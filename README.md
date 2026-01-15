@@ -4,6 +4,41 @@ Sistema de gestión hotelera desarrollado con Django y SQLite que soluciona los 
 
 ## Características Principales
 
+### 🚀 Funcionalidades de Recepción (Nuevas)
+
+#### Dashboard de Recepción
+- Vista general con tareas del día
+- Check-ins y check-outs pendientes
+- Estadísticas rápidas de habitaciones
+- Acciones rápidas con botones grandes
+
+#### Proceso Rápido de Registro
+- **Registro Rápido**: Crear huésped + reserva + check-in en un solo paso
+- **Autocompletado con RENIEC**: Ingrese DNI y autocompleta datos automáticamente
+- **Walk-in**: Check-in sin reserva previa
+- Validación inteligente de disponibilidad
+
+#### Check-in/Check-out Rápido
+- **Check-in Rápido**: Lista de pendientes con acción en 1 clic
+- **Check-out Rápido**: Cálculo automático (precio - depósito)
+- Formularios simplificados con campos esenciales
+- Auto-completar empleado y fecha/hora
+
+#### Búsqueda Global
+- Búsqueda rápida en el header (Ctrl+K)
+- Busca huéspedes, reservas y habitaciones
+- Resultados instantáneos con enlaces directos
+
+#### Vista de Habitaciones
+- **Tablero Kanban**: Habitaciones organizadas por estado
+- Vista visual con colores por estado
+- Información rápida de cada habitación
+
+#### Calendario de Ocupación
+- Vista mensual de reservas
+- Ver ocupación por día
+- Navegación entre meses
+
 ### 1. Gestión de Reservas
 - Crear, editar y cancelar reservas
 - Validación automática de disponibilidad
@@ -26,6 +61,7 @@ Sistema de gestión hotelera desarrollado con Django y SQLite que soluciona los 
 
 ### 4. Gestión de Huéspedes
 - Registro completo de información de huéspedes
+- **Integración con RENIEC**: Autocompletado de datos con DNI
 - Historial de reservas por huésped
 - Preferencias y notas especiales
 - Búsqueda avanzada de huéspedes
@@ -41,6 +77,8 @@ Sistema de gestión hotelera desarrollado con Django y SQLite que soluciona los 
 - Python 3.8 o superior
 - Django 4.2.7
 - SQLite (incluido en Python)
+- requests (para API RENIEC)
+- python-decouple (opcional, para variables de entorno)
 
 ## Instalación
 
@@ -57,23 +95,27 @@ source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Realizar migraciones:
+4. (Opcional) Configurar API RENIEC:
+   - Ver `CONFIGURACION_RENIEC.md` para detalles
+   - Crear archivo `.env` con `RENIEC_PROVIDER` y `RENIEC_API_KEY` si deseas usar autocompletado
+
+5. Realizar migraciones:
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-5. Crear un superusuario (opcional, para acceder al admin):
+6. Crear un superusuario (opcional, para acceder al admin):
 ```bash
 python manage.py createsuperuser
 ```
 
-6. Ejecutar el servidor de desarrollo:
+7. Ejecutar el servidor de desarrollo:
 ```bash
 python manage.py runserver
 ```
 
-7. Acceder a la aplicación:
+8. Acceder a la aplicación:
 - Sistema: http://127.0.0.1:8000/
 - Admin: http://127.0.0.1:8000/admin/
 
@@ -146,8 +188,27 @@ sistema hotel/
 
 ## Uso del Sistema
 
+### Para Recepcionistas (Flujo Rápido)
+
+1. **Dashboard**: Ver tareas del día al iniciar sesión
+2. **Registro Rápido**: 
+   - Ir a "Recepción > Registro Rápido"
+   - Ingresar DNI (autocompleta desde RENIEC)
+   - Seleccionar habitación y fechas
+   - Opcional: hacer check-in automático
+3. **Check-in Rápido**: 
+   - Ver lista de check-ins pendientes
+   - Clic en "Check-in" para proceso rápido
+4. **Check-out Rápido**: 
+   - Ver lista de check-outs del día
+   - Cálculo automático de total a pagar
+5. **Walk-in**: Para huéspedes sin reserva previa
+6. **Búsqueda**: Usar Ctrl+K o barra de búsqueda en header
+
+### Flujo Tradicional
+
 1. **Configurar Habitaciones**: Crear las habitaciones del hotel con sus características
-2. **Registrar Huéspedes**: Agregar información de huéspedes
+2. **Registrar Huéspedes**: Agregar información de huéspedes (o usar autocompletado RENIEC)
 3. **Crear Reservas**: Realizar reservas verificando disponibilidad
 4. **Check-in**: Registrar el ingreso de huéspedes
 5. **Check-out**: Registrar la salida y pago
@@ -160,6 +221,8 @@ sistema hotel/
 - **Frontend**: Bootstrap 5
 - **Formularios**: Django Crispy Forms
 - **Iconos**: Bootstrap Icons
+- **API Externa**: RENIEC (APISPERU/JSON.pe) para autocompletado de datos
+- **Cache**: Django LocMemCache para optimizar consultas RENIEC
 
 ## Notas
 
@@ -171,4 +234,5 @@ sistema hotel/
 ## Licencia
 
 Este proyecto es de código abierto y está disponible para uso educativo y comercial.
+
 

@@ -2,32 +2,63 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db.models import Q, Count, Sum, Avg
 from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from datetime import datetime, timedelta
 from .models import Habitacion, Huesped, Reserva, CheckIn, CheckOut
 from .forms import HuespedForm, HabitacionForm, ReservaForm, CheckInForm, CheckOutForm
+from .utils import consultar_reniec_dni
 
 
 def index(request):
-    """Página principal del sistema"""
+    """Dashboard de recepción mejorado con tareas del día"""
     hoy = timezone.now().date()
+    ahora = timezone.now()
     
     # Estadísticas rápidas
     total_habitaciones = Habitacion.objects.count()
     habitaciones_disponibles = Habitacion.objects.filter(estado='disponible').count()
-    reservas_hoy = Reserva.objects.filter(fecha_entrada=hoy, estado__in=['confirmada', 'checkin']).count()
-    checkins_pendientes = Reserva.objects.filter(fecha_entrada=hoy, estado='confirmada').count()
-    checkouts_hoy = Reserva.objects.filter(fecha_salida=hoy, estado='checkin').count()
+    habitaciones_ocupadas = Habitacion.objects.filter(estado='ocupada').count()
+    habitaciones_limpieza = Habitacion.objects.filter(estado='limpieza').count()
+    
+    # Check-ins pendientes de hoy
+    checkins_pendientes = Reserva.objects.filter(
+        fecha_entrada=hoy,
+        estado=Reserva.ESTADO_CONFIRMADA
+    ).select_related('huesped', 'habitacion').order_by('fecha_entrada')[:10]
+    
+    # Check-outs programados para hoy
+    checkouts_hoy = Reserva.objects.filter(
+        fecha_salida=hoy,
+        estado=Reserva.ESTADO_CHECKIN
+    ).select_related('huesped', 'habitacion').order_by('fecha_salida')[:10]
+    
+    # Check-outs próximos (próximas 2 horas)
+    hora_limite = ahora + timedelta(hours=2)
+    checkouts_proximos = Reserva.objects.filter(
+        fecha_salida=hoy,
+        estado=Reserva.ESTADO_CHECKIN
+    ).select_related('huesped', 'habitacion')[:5]
+    
+    # Habitaciones en limpieza por más de 2 horas
+    habitaciones_limpieza_largas = Habitacion.objects.filter(
+        estado='limpieza'
+    )[:5]
     
     # Reservas recientes
-    reservas_recientes = Reserva.objects.all().order_by('-fecha_creacion')[:10]
+    reservas_recientes = Reserva.objects.all().select_related('huesped', 'habitacion').order_by('-fecha_creacion')[:5]
     
     context = {
         'total_habitaciones': total_habitaciones,
         'habitaciones_disponibles': habitaciones_disponibles,
-        'reservas_hoy': reservas_hoy,
+        'habitaciones_ocupadas': habitaciones_ocupadas,
+        'habitaciones_limpieza': habitaciones_limpieza,
         'checkins_pendientes': checkins_pendientes,
         'checkouts_hoy': checkouts_hoy,
+        'checkouts_proximos': checkouts_proximos,
+        'habitaciones_limpieza_largas': habitaciones_limpieza_largas,
         'reservas_recientes': reservas_recientes,
+        'hoy': hoy,
     }
     return render(request, 'hotel/index.html', context)
 
@@ -561,4 +592,571 @@ def reporte_huespedes(request):
         'nacionalidades': nacionalidades,
     }
     return render(request, 'hotel/reportes/huespedes.html', context)
+
+
+# ========== NUEVAS FUNCIONALIDADES DE RECEPCIÓN ==========
+
+@require_http_methods(["GET"])
+def api_consultar_dni(request):
+    """API para consultar DNI desde RENIEC"""
+    dni = request.GET.get('dni', '').strip()
+    
+    if not dni or len(dni) != 8 or not dni.isdigit():
+        return JsonResponse({'error': 'DNI inválido. Debe tener 8 dígitos.'}, status=400)
+    
+    # Primero verificar si ya existe en nuestra base de datos
+    try:
+        huesped = Huesped.objects.get(documento_identidad=dni)
+        return JsonResponse({
+            'existe': True,
+            'nombre': huesped.nombre,
+            'apellidos': huesped.apellidos,
+            'email': huesped.email,
+            'telefono': huesped.telefono,
+            'nacionalidad': huesped.nacionalidad,
+            'huesped_id': huesped.id,
+        })
+    except Huesped.DoesNotExist:
+        pass
+    
+    # Si no existe, consultar RENIEC
+    datos_reniec = consultar_reniec_dni(dni)
+    
+    if datos_reniec:
+        # Separar apellidos si vienen juntos
+        apellidos = datos_reniec.get('apellidos', '').strip()
+        apellido_paterno = datos_reniec.get('apellido_paterno', '')
+        apellido_materno = datos_reniec.get('apellido_materno', '')
+        
+        if not apellido_paterno and apellidos:
+            # Intentar separar apellidos
+            partes = apellidos.split()
+            if len(partes) >= 2:
+                apellido_paterno = partes[0]
+                apellido_materno = ' '.join(partes[1:])
+            else:
+                apellido_paterno = apellidos
+        
+        return JsonResponse({
+            'existe': False,
+            'nombre': datos_reniec.get('nombre', ''),
+            'apellidos': apellidos,
+            'apellido_paterno': apellido_paterno,
+            'apellido_materno': apellido_materno,
+            'direccion': datos_reniec.get('direccion', ''),
+        })
+    else:
+        return JsonResponse({
+            'existe': False,
+            'error': 'No se encontraron datos para este DNI'
+        })
+
+
+def registro_rapido(request):
+    """Proceso rápido: crear huésped + reserva + check-in en un solo paso"""
+    if request.method == 'POST':
+        # Obtener datos del formulario
+        documento = request.POST.get('documento_identidad', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+        apellidos = request.POST.get('apellidos', '').strip()
+        email = request.POST.get('email', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+        habitacion_id = request.POST.get('habitacion')
+        fecha_entrada_str = request.POST.get('fecha_entrada')
+        fecha_salida_str = request.POST.get('fecha_salida')
+        numero_huespedes_str = request.POST.get('numero_huespedes', '1')
+        hacer_checkin = request.POST.get('hacer_checkin') == 'on'
+        empleado = request.POST.get('empleado', '').strip()
+        documentos_recibidos = request.POST.get('documentos_recibidos') == 'on'
+        deposito_str = request.POST.get('deposito', '0') or '0'
+        
+        # Validaciones básicas
+        if not documento or not nombre or not apellidos or not habitacion_id:
+            messages.error(request, 'Por favor complete todos los campos obligatorios.')
+            return redirect('registro_rapido')
+        
+        try:
+            # Convertir tipos de datos
+            from decimal import Decimal
+            fecha_entrada = datetime.strptime(fecha_entrada_str, '%Y-%m-%d').date()
+            fecha_salida = datetime.strptime(fecha_salida_str, '%Y-%m-%d').date()
+            numero_huespedes = int(numero_huespedes_str)
+            deposito = Decimal(str(deposito_str))
+            
+            # Validar fechas
+            if fecha_entrada >= fecha_salida:
+                messages.error(request, 'La fecha de salida debe ser posterior a la fecha de entrada.')
+                return redirect('registro_rapido')
+            
+            # Buscar o crear huésped
+            huesped, creado = Huesped.objects.get_or_create(
+                documento_identidad=documento,
+                defaults={
+                    'nombre': nombre,
+                    'apellidos': apellidos,
+                    'email': email,
+                    'telefono': telefono,
+                }
+            )
+            
+            if not creado:
+                # Actualizar datos si ya existe
+                huesped.nombre = nombre
+                huesped.apellidos = apellidos
+                if email:
+                    huesped.email = email
+                if telefono:
+                    huesped.telefono = telefono
+                huesped.save()
+            
+            # Obtener habitación
+            habitacion = get_object_or_404(Habitacion, id=habitacion_id)
+            
+            # Validar capacidad
+            if numero_huespedes > habitacion.capacidad:
+                messages.error(request, f'El número de huéspedes ({numero_huespedes}) excede la capacidad de la habitación ({habitacion.capacidad}).')
+                return redirect('registro_rapido')
+            
+            # Verificar disponibilidad
+            reservas_conflictivas = Reserva.objects.filter(
+                habitacion=habitacion,
+                estado__in=[Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN],
+                fecha_entrada__lt=fecha_salida,
+                fecha_salida__gt=fecha_entrada
+            )
+            
+            if reservas_conflictivas.exists():
+                messages.error(request, 'La habitación no está disponible en las fechas seleccionadas.')
+                return redirect('registro_rapido')
+            
+            # Crear reserva
+            reserva = Reserva.objects.create(
+                huesped=huesped,
+                habitacion=habitacion,
+                fecha_entrada=fecha_entrada,
+                fecha_salida=fecha_salida,
+                numero_huespedes=numero_huespedes,
+                estado=Reserva.ESTADO_CONFIRMADA,
+            )
+            
+            # Actualizar estado de habitación
+            habitacion.estado = Habitacion.ESTADO_RESERVADA
+            habitacion.save()
+            
+            # Si se solicita, hacer check-in automático
+            if hacer_checkin:
+                CheckIn.objects.create(
+                    reserva=reserva,
+                    fecha_hora=timezone.now(),
+                    empleado=empleado,
+                    documentos_recibidos=documentos_recibidos,
+                    deposito=deposito,
+                )
+                reserva.estado = Reserva.ESTADO_CHECKIN
+                reserva.save()
+                habitacion.estado = Habitacion.ESTADO_OCUPADA
+                habitacion.save()
+                messages.success(request, f'Registro completo realizado. Check-in automático para Reserva #{reserva.id}.')
+            else:
+                messages.success(request, f'Reserva #{reserva.id} creada exitosamente. Lista para check-in.')
+            
+            return redirect('detalle_reserva', reserva_id=reserva.id)
+            
+        except ValueError as e:
+            messages.error(request, f'Error en los datos ingresados: {str(e)}')
+            return redirect('registro_rapido')
+        except Exception as e:
+            messages.error(request, f'Error al crear el registro: {str(e)}')
+            return redirect('registro_rapido')
+    
+    # GET: Mostrar formulario
+    # Obtener habitaciones disponibles
+    habitaciones_disponibles = Habitacion.objects.filter(
+        estado__in=[Habitacion.ESTADO_DISPONIBLE, Habitacion.ESTADO_RESERVADA]
+    ).order_by('numero')
+    
+    # Fecha por defecto: hoy
+    fecha_hoy = timezone.now().date().isoformat()
+    
+    context = {
+        'habitaciones': habitaciones_disponibles,
+        'fecha_hoy': fecha_hoy,
+    }
+    return render(request, 'hotel/recepcion/registro_rapido.html', context)
+
+
+def checkin_rapido(request):
+    """Lista de check-ins pendientes con acción rápida"""
+    hoy = timezone.now().date()
+    
+    # Check-ins pendientes de hoy
+    checkins_pendientes = Reserva.objects.filter(
+        fecha_entrada__lte=hoy,
+        estado=Reserva.ESTADO_CONFIRMADA
+    ).select_related('huesped', 'habitacion').order_by('fecha_entrada')
+    
+    # Si hay un ID específico, hacer check-in directo
+    reserva_id = request.GET.get('reserva_id')
+    if reserva_id:
+        reserva = get_object_or_404(Reserva, id=reserva_id, estado=Reserva.ESTADO_CONFIRMADA)
+        
+        if request.method == 'POST':
+            empleado = request.POST.get('empleado', '').strip()
+            documentos_recibidos = request.POST.get('documentos_recibidos') == 'on'
+            deposito = request.POST.get('deposito', 0) or 0
+            
+            CheckIn.objects.create(
+                reserva=reserva,
+                fecha_hora=timezone.now(),
+                empleado=empleado,
+                documentos_recibidos=documentos_recibidos,
+                deposito=deposito or 0,
+            )
+            
+            reserva.estado = Reserva.ESTADO_CHECKIN
+            reserva.save()
+            reserva.habitacion.estado = Habitacion.ESTADO_OCUPADA
+            reserva.habitacion.save()
+            
+            messages.success(request, f'Check-in realizado para Reserva #{reserva.id}.')
+            return redirect('checkin_rapido')
+        
+        context = {
+            'reserva': reserva,
+            'hacer_checkin': True,
+        }
+        return render(request, 'hotel/recepcion/checkin_rapido.html', context)
+    
+    context = {
+        'checkins_pendientes': checkins_pendientes,
+        'hoy': hoy,
+    }
+    return render(request, 'hotel/recepcion/checkin_rapido.html', context)
+
+
+def checkout_rapido(request):
+    """Lista de check-outs pendientes con acción rápida"""
+    hoy = timezone.now().date()
+    
+    # Check-outs pendientes de hoy
+    checkouts_pendientes = Reserva.objects.filter(
+        fecha_salida__lte=hoy,
+        estado=Reserva.ESTADO_CHECKIN
+    ).select_related('huesped', 'habitacion', 'checkin').order_by('fecha_salida')
+    
+    # Si hay un ID específico, hacer check-out directo
+    reserva_id = request.GET.get('reserva_id')
+    if reserva_id:
+        reserva = get_object_or_404(Reserva, id=reserva_id, estado=Reserva.ESTADO_CHECKIN)
+        
+        if not hasattr(reserva, 'checkin'):
+            messages.warning(request, 'No se puede realizar check-out sin check-in previo.')
+            return redirect('checkout_rapido')
+        
+        if request.method == 'POST':
+            from decimal import Decimal
+            empleado = request.POST.get('empleado', '').strip()
+            total_pagado_str = request.POST.get('total_pagado', str(reserva.precio_total)) or str(reserva.precio_total)
+            metodo_pago = request.POST.get('metodo_pago', 'efectivo')
+            calificacion_str = request.POST.get('calificacion') or None
+            danos_observados = request.POST.get('danos_observados', '').strip()
+            
+            # Convertir tipos
+            try:
+                total_pagado = Decimal(str(total_pagado_str))
+                calificacion = int(calificacion_str) if calificacion_str and calificacion_str.isdigit() else None
+            except (ValueError, TypeError):
+                messages.error(request, 'Error en los datos ingresados. Por favor verifique los valores.')
+                return redirect('checkout_rapido')
+            
+            # Calcular total considerando depósito
+            deposito = reserva.checkin.deposito if hasattr(reserva, 'checkin') else Decimal('0')
+            total_final = total_pagado - deposito
+            
+            CheckOut.objects.create(
+                reserva=reserva,
+                fecha_hora=timezone.now(),
+                empleado=empleado,
+                total_pagado=total_final if total_final > 0 else reserva.precio_total,
+                metodo_pago=metodo_pago,
+                calificacion=calificacion,
+                danos_observados=danos_observados,
+            )
+            
+            reserva.estado = Reserva.ESTADO_CHECKOUT
+            reserva.save()
+            reserva.habitacion.estado = Habitacion.ESTADO_LIMPIEZA
+            reserva.habitacion.save()
+            
+            messages.success(request, f'Check-out realizado para Reserva #{reserva.id}.')
+            return redirect('checkout_rapido')
+        
+        # Calcular total a pagar (precio - depósito)
+        deposito = reserva.checkin.deposito if hasattr(reserva, 'checkin') else 0
+        total_a_pagar = float(reserva.precio_total) - float(deposito)
+        
+        context = {
+            'reserva': reserva,
+            'deposito': deposito,
+            'total_a_pagar': total_a_pagar,
+            'hacer_checkout': True,
+        }
+        return render(request, 'hotel/recepcion/checkout_rapido.html', context)
+    
+    context = {
+        'checkouts_pendientes': checkouts_pendientes,
+        'hoy': hoy,
+    }
+    return render(request, 'hotel/recepcion/checkout_rapido.html', context)
+
+
+def busqueda_rapida(request):
+    """Búsqueda rápida global"""
+    query = request.GET.get('q', '').strip()
+    resultados = {
+        'huespedes': [],
+        'reservas': [],
+        'habitaciones': [],
+    }
+    
+    if query:
+        # Buscar huéspedes
+        resultados['huespedes'] = Huesped.objects.filter(
+            Q(nombre__icontains=query) |
+            Q(apellidos__icontains=query) |
+            Q(documento_identidad__icontains=query) |
+            Q(email__icontains=query)
+        )[:5]
+        
+        # Buscar reservas
+        resultados['reservas'] = Reserva.objects.filter(
+            Q(id__icontains=query) |
+            Q(huesped__nombre__icontains=query) |
+            Q(huesped__apellidos__icontains=query) |
+            Q(huesped__documento_identidad__icontains=query) |
+            Q(habitacion__numero__icontains=query)
+        ).select_related('huesped', 'habitacion')[:5]
+        
+        # Buscar habitaciones
+        resultados['habitaciones'] = Habitacion.objects.filter(
+            Q(numero__icontains=query)
+        )[:5]
+    
+    return JsonResponse({
+        'huespedes': [
+            {
+                'id': h.id,
+                'nombre': h.nombre_completo,
+                'documento': h.documento_identidad,
+                'url': f'/huespedes/{h.id}/'
+            } for h in resultados['huespedes']
+        ],
+        'reservas': [
+            {
+                'id': r.id,
+                'huesped': r.huesped.nombre_completo,
+                'habitacion': r.habitacion.numero,
+                'estado': r.get_estado_display(),
+                'url': f'/reservas/{r.id}/'
+            } for r in resultados['reservas']
+        ],
+        'habitaciones': [
+            {
+                'id': h.id,
+                'numero': h.numero,
+                'tipo': h.get_tipo_display(),
+                'estado': h.get_estado_display(),
+                'url': f'/habitaciones/{h.id}/'
+            } for h in resultados['habitaciones']
+        ],
+    })
+
+
+def tablero_habitaciones(request):
+    """Vista tipo Kanban de habitaciones por estado"""
+    estados = [
+        ('disponible', 'Disponible', 'success'),
+        ('ocupada', 'Ocupada', 'danger'),
+        ('reservada', 'Reservada', 'warning'),
+        ('limpieza', 'En Limpieza', 'info'),
+        ('mantenimiento', 'Mantenimiento', 'dark'),
+    ]
+    
+    habitaciones_disponibles = Habitacion.objects.filter(estado='disponible').annotate(
+        reserva_activa=Count('reservas', filter=Q(reservas__estado__in=[
+            Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN
+        ]))
+    ).order_by('numero')
+    
+    habitaciones_ocupadas = Habitacion.objects.filter(estado='ocupada').annotate(
+        reserva_activa=Count('reservas', filter=Q(reservas__estado__in=[
+            Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN
+        ]))
+    ).order_by('numero')
+    
+    habitaciones_reservadas = Habitacion.objects.filter(estado='reservada').annotate(
+        reserva_activa=Count('reservas', filter=Q(reservas__estado__in=[
+            Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN
+        ]))
+    ).order_by('numero')
+    
+    habitaciones_limpieza = Habitacion.objects.filter(estado='limpieza').annotate(
+        reserva_activa=Count('reservas', filter=Q(reservas__estado__in=[
+            Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN
+        ]))
+    ).order_by('numero')
+    
+    habitaciones_mantenimiento = Habitacion.objects.filter(estado='mantenimiento').annotate(
+        reserva_activa=Count('reservas', filter=Q(reservas__estado__in=[
+            Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA, Reserva.ESTADO_CHECKIN
+        ]))
+    ).order_by('numero')
+    
+    context = {
+        'estados': estados,
+        'habitaciones_disponibles': habitaciones_disponibles,
+        'habitaciones_ocupadas': habitaciones_ocupadas,
+        'habitaciones_reservadas': habitaciones_reservadas,
+        'habitaciones_limpieza': habitaciones_limpieza,
+        'habitaciones_mantenimiento': habitaciones_mantenimiento,
+    }
+    return render(request, 'hotel/recepcion/tablero_habitaciones.html', context)
+
+
+def walkin(request):
+    """Check-in sin reserva previa (walk-in)"""
+    if request.method == 'POST':
+        documento = request.POST.get('documento_identidad', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+        apellidos = request.POST.get('apellidos', '').strip()
+        email = request.POST.get('email', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+        habitacion_id = request.POST.get('habitacion')
+        fecha_entrada_str = request.POST.get('fecha_entrada')
+        fecha_salida_str = request.POST.get('fecha_salida')
+        numero_huespedes_str = request.POST.get('numero_huespedes', '1')
+        empleado = request.POST.get('empleado', '').strip()
+        documentos_recibidos = request.POST.get('documentos_recibidos') == 'on'
+        deposito_str = request.POST.get('deposito', '0') or '0'
+        
+        try:
+            # Convertir tipos de datos
+            from decimal import Decimal
+            fecha_entrada = datetime.strptime(fecha_entrada_str, '%Y-%m-%d').date()
+            fecha_salida = datetime.strptime(fecha_salida_str, '%Y-%m-%d').date()
+            numero_huespedes = int(numero_huespedes_str)
+            deposito = Decimal(str(deposito_str))
+            
+            # Validar fechas
+            if fecha_entrada >= fecha_salida:
+                messages.error(request, 'La fecha de salida debe ser posterior a la fecha de entrada.')
+                return redirect('walkin')
+            
+            # Buscar o crear huésped
+            huesped, _ = Huesped.objects.get_or_create(
+                documento_identidad=documento,
+                defaults={
+                    'nombre': nombre,
+                    'apellidos': apellidos,
+                    'email': email,
+                    'telefono': telefono,
+                }
+            )
+            
+            habitacion = get_object_or_404(Habitacion, id=habitacion_id)
+            
+            # Validar capacidad
+            if numero_huespedes > habitacion.capacidad:
+                messages.error(request, f'El número de huéspedes ({numero_huespedes}) excede la capacidad de la habitación ({habitacion.capacidad}).')
+                return redirect('walkin')
+            
+            # Crear reserva y check-in inmediato
+            reserva = Reserva.objects.create(
+                huesped=huesped,
+                habitacion=habitacion,
+                fecha_entrada=fecha_entrada,
+                fecha_salida=fecha_salida,
+                numero_huespedes=numero_huespedes,
+                estado=Reserva.ESTADO_CHECKIN,
+            )
+            
+            CheckIn.objects.create(
+                reserva=reserva,
+                fecha_hora=timezone.now(),
+                empleado=empleado,
+                documentos_recibidos=documentos_recibidos,
+                deposito=deposito,
+            )
+            
+            habitacion.estado = Habitacion.ESTADO_OCUPADA
+            habitacion.save()
+            
+            messages.success(request, f'Walk-in registrado. Reserva #{reserva.id} con check-in automático.')
+            return redirect('detalle_reserva', reserva_id=reserva.id)
+            
+        except ValueError as e:
+            messages.error(request, f'Error en los datos ingresados: {str(e)}')
+            return redirect('walkin')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+            return redirect('walkin')
+    
+    # GET: Mostrar formulario
+    habitaciones_disponibles = Habitacion.objects.filter(
+        estado=Habitacion.ESTADO_DISPONIBLE
+    ).order_by('numero')
+    
+    fecha_hoy = timezone.now().date().isoformat()
+    
+    context = {
+        'habitaciones': habitaciones_disponibles,
+        'fecha_hoy': fecha_hoy,
+    }
+    return render(request, 'hotel/recepcion/walkin.html', context)
+
+
+def calendario_ocupacion(request):
+    """Vista de calendario con ocupación"""
+    mes = request.GET.get('mes', timezone.now().month)
+    año = request.GET.get('año', timezone.now().year)
+    
+    try:
+        mes = int(mes)
+        año = int(año)
+    except (ValueError, TypeError):
+        mes = timezone.now().month
+        año = timezone.now().year
+    
+    # Obtener todas las reservas del mes
+    fecha_inicio = datetime(año, mes, 1).date()
+    if mes == 12:
+        fecha_fin = datetime(año + 1, 1, 1).date() - timedelta(days=1)
+    else:
+        fecha_fin = datetime(año, mes + 1, 1).date() - timedelta(days=1)
+    
+    reservas = Reserva.objects.filter(
+        Q(fecha_entrada__lte=fecha_fin, fecha_salida__gte=fecha_inicio)
+    ).select_related('huesped', 'habitacion')
+    
+    # Organizar por día
+    ocupacion_por_dia = {}
+    for reserva in reservas:
+        fecha_actual = max(reserva.fecha_entrada, fecha_inicio)
+        fecha_final = min(reserva.fecha_salida, fecha_fin)
+        
+        while fecha_actual <= fecha_final:
+            if fecha_actual not in ocupacion_por_dia:
+                ocupacion_por_dia[fecha_actual] = []
+            ocupacion_por_dia[fecha_actual].append(reserva)
+            fecha_actual += timedelta(days=1)
+    
+    context = {
+        'mes': mes,
+        'año': año,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'ocupacion_por_dia': ocupacion_por_dia,
+        'reservas': reservas,
+    }
+    return render(request, 'hotel/recepcion/calendario.html', context)
 

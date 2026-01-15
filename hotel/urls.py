@@ -2,8 +2,18 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Página principal
+    # Página principal (Dashboard de recepción)
     path('', views.index, name='index'),
+    
+    # ========== NUEVAS FUNCIONALIDADES DE RECEPCIÓN ==========
+    path('recepcion/registro-rapido/', views.registro_rapido, name='registro_rapido'),
+    path('recepcion/checkin-rapido/', views.checkin_rapido, name='checkin_rapido'),
+    path('recepcion/checkout-rapido/', views.checkout_rapido, name='checkout_rapido'),
+    path('recepcion/walkin/', views.walkin, name='walkin'),
+    path('recepcion/tablero/', views.tablero_habitaciones, name='tablero_habitaciones'),
+    path('recepcion/calendario/', views.calendario_ocupacion, name='calendario_ocupacion'),
+    path('api/busqueda/', views.busqueda_rapida, name='busqueda_rapida'),
+    path('api/consultar-dni/', views.api_consultar_dni, name='api_consultar_dni'),
     
     # Reservas
     path('reservas/', views.lista_reservas, name='lista_reservas'),
@@ -39,4 +49,5 @@ urlpatterns = [
     path('reportes/ingresos/', views.reporte_ingresos, name='reporte_ingresos'),
     path('reportes/huespedes/', views.reporte_huespedes, name='reporte_huespedes'),
 ]
+
 

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Check-out Rápido - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-box-arrow-right"></i> Check-out Rápido</h1>
+        <p class="text-muted">Check-outs pendientes para hoy ({{ hoy }})</p>
+    </div>
+</div>
+
+{% if hacer_checkout %}
+<!-- Formulario de Check-out -->
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h4>Check-out: Reserva #{{ reserva.id }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}<br>
+                    <strong>Habitación:</strong> {{ reserva.habitacion.numero }}<br>
+                    <strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}<br>
+                    <strong>Noches:</strong> {{ reserva.numero_noches }}<br>
+                    <strong>Precio Reserva:</strong> ${{ reserva.precio_total|floatformat:2 }}<br>
+                    {% if deposito > 0 %}
+                    <strong>Depósito:</strong> ${{ deposito|floatformat:2 }}<br>
+                    {% endif %}
+                    <strong class="text-success">Total a Pagar:</strong> ${{ total_a_pagar|floatformat:2 }}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Empleado</label>
+                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Total Pagado <span class="text-danger">*</span></label>
+                            <input type="number" name="total_pagado" class="form-control" step="0.01" value="{{ total_a_pagar }}" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Método de Pago <span class="text-danger">*</span></label>
+                            <select name="metodo_pago" class="form-select" required>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="tarjeta">Tarjeta</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="mixto">Mixto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Calificación (1-5)</label>
+                            <input type="number" name="calificacion" class="form-control" min="1" max="5">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Daños Observados</label>
+                        <textarea name="danos_observados" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'checkout_rapido' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="bi bi-check-circle"></i> Confirmar Check-out
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Lista de Check-outs Pendientes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if checkouts_pendientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reserva</th>
+                                <th>Huésped</th>
+                                <th>Habitación</th>
+                                <th>Salida</th>
+                                <th>Total</th>
+                                <th>Depósito</th>
+                                <th>A Pagar</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in checkouts_pendientes %}
+                            <tr>
+                                <td>#{{ reserva.id }}</td>
+                                <td>{{ reserva.huesped.nombre_completo }}</td>
+                                <td>{{ reserva.habitacion.numero }}</td>
+                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>${{ reserva.checkin.deposito|floatformat:2|default:"0.00" }}</td>
+                                <td>
+                                    <strong>${{ reserva.precio_total|floatformat:2 }}</strong>
+                                </td>
+                                <td>
+                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-check-circle"></i> Check-out
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> No hay check-outs pendientes para hoy.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

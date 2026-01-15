@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Walk-in - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-door-open"></i> Walk-in (Check-in sin Reserva)</h1>
+        <p class="text-muted">Registre un huésped que llega sin reserva previa</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h4><i class="bi bi-person-plus"></i> Nuevo Walk-in</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" id="walkin-form">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Ingrese el DNI y presione Tab para autocompletar datos desde RENIEC
+                    </div>
+                    
+                    <h5 class="mb-3">Datos del Huésped</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">DNI / Documento <span class="text-danger">*</span></label>
+                            <input type="text" name="documento_identidad" id="documento_identidad" class="form-control" 
+                                   maxlength="8" pattern="[0-9]{8}" required autofocus>
+                            <div id="dni-loading" class="spinner-border spinner-border-sm d-none" role="status"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Apellidos <span class="text-danger">*</span></label>
+                            <input type="text" name="apellidos" id="apellidos" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" id="email" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="telefono" id="telefono" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Habitación Disponible <span class="text-danger">*</span></label>
+                            <select name="habitacion" class="form-select" required>
+                                <option value="">Seleccione una habitación</option>
+                                {% for habitacion in habitaciones %}
+                                <option value="{{ habitacion.id }}">
+                                    Hab. {{ habitacion.numero }} - {{ habitacion.get_tipo_display }} (${{ habitacion.precio_noche }}/noche)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4">Datos de la Reserva</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha de Entrada <span class="text-danger">*</span></label>
+                            <input type="date" name="fecha_entrada" class="form-control" value="{{ fecha_hoy }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha de Salida <span class="text-danger">*</span></label>
+                            <input type="date" name="fecha_salida" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Número de Huéspedes <span class="text-danger">*</span></label>
+                            <input type="number" name="numero_huespedes" class="form-control" value="1" min="1" required>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4">Check-in Inmediato</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Empleado</label>
+                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Depósito</label>
+                            <input type="number" name="deposito" class="form-control" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="documentos_recibidos" id="documentos_recibidos" checked>
+                        <label class="form-check-label" for="documentos_recibidos">
+                            Documentos recibidos
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'index' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-check-circle"></i> Registrar Walk-in
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Mismo script de autocompletado que registro_rapido
+document.addEventListener('DOMContentLoaded', function() {
+    const dniInput = document.getElementById('documento_identidad');
+    const nombreInput = document.getElementById('nombre');
+    const apellidosInput = document.getElementById('apellidos');
+    const emailInput = document.getElementById('email');
+    const telefonoInput = document.getElementById('telefono');
+    const loadingDiv = document.getElementById('dni-loading');
+    
+    dniInput.addEventListener('blur', function() {
+        const dni = this.value.trim();
+        if (dni.length === 8 && /^\d+$/.test(dni)) {
+            loadingDiv.classList.remove('d-none');
+            
+            fetch(`/api/consultar-dni/?dni=${dni}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadingDiv.classList.add('d-none');
+                    if (!data.error) {
+                        if (data.nombre) nombreInput.value = data.nombre;
+                        if (data.apellidos) apellidosInput.value = data.apellidos;
+                    }
+                })
+                .catch(error => {
+                    loadingDiv.classList.add('d-none');
+                });
+        }
+    });
+});
+</script>
+{% endblock %}
+

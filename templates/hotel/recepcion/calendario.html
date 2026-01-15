@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendario de Ocupación - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-calendar3"></i> Calendario de Ocupación</h1>
+            <div>
+                {% if mes > 1 %}
+                <a href="?mes={{ mes|add:'-1' }}&año={{ año }}" class="btn btn-outline-primary">
+                    <i class="bi bi-chevron-left"></i> Mes Anterior
+                </a>
+                {% else %}
+                <a href="?mes=12&año={{ año|add:'-1' }}" class="btn btn-outline-primary">
+                    <i class="bi bi-chevron-left"></i> Mes Anterior
+                </a>
+                {% endif %}
+                {% if mes < 12 %}
+                <a href="?mes={{ mes|add:'1' }}&año={{ año }}" class="btn btn-outline-primary">
+                    Mes Siguiente <i class="bi bi-chevron-right"></i>
+                </a>
+                {% else %}
+                <a href="?mes=1&año={{ año|add:'1' }}" class="btn btn-outline-primary">
+                    Mes Siguiente <i class="bi bi-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <h3 class="text-muted">{{ fecha_inicio|date:"F Y" }}</h3>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Reservas del Mes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Huésped</th>
+                                <th>Habitación</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Noches</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in reservas %}
+                            <tr>
+                                <td>#{{ reserva.id }}</td>
+                                <td>{{ reserva.huesped.nombre_completo }}</td>
+                                <td>{{ reserva.habitacion.numero }}</td>
+                                <td>{{ reserva.fecha_entrada }}</td>
+                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>{{ reserva.numero_noches }}</td>
+                                <td>
+                                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
+                                        {{ reserva.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No hay reservas en este mes</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

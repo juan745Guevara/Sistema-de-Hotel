@@ -6,3 +6,4 @@ class HotelConfig(AppConfig):
     name = 'hotel'
     verbose_name = 'Sistema Hotelero'
 
+

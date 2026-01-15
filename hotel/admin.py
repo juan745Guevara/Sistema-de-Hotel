@@ -36,3 +36,4 @@ class CheckOutAdmin(admin.ModelAdmin):
     list_filter = ['metodo_pago', 'fecha_hora']
     search_fields = ['reserva__huesped__nombre', 'reserva__huesped__apellidos']
 
+

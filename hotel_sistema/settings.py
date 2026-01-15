@@ -123,3 +123,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+# Configuración API RENIEC
+# Proveedor: 'APISPERU' o 'JSON_PE'
+RENIEC_PROVIDER = os.environ.get('RENIEC_PROVIDER', 'APISPERU')
+# API Key (opcional, algunos proveedores no la requieren)
+RENIEC_API_KEY = os.environ.get('RENIEC_API_KEY', '')
+
+# Cache configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
+

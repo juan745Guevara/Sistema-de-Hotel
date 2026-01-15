@@ -1,0 +1,17 @@
+<div class="card mb-2 habitacion-card">
+    <div class="card-body p-2">
+        <h6 class="mb-1">Hab. {{ habitacion.numero }}</h6>
+        <small class="text-muted d-block">{{ habitacion.get_tipo_display }}</small>
+        <small class="text-muted d-block">${{ habitacion.precio_noche|floatformat:2 }}/noche</small>
+        <small class="text-muted d-block">Cap: {{ habitacion.capacidad }} pers.</small>
+        {% if habitacion.reserva_activa > 0 %}
+        <span class="badge bg-info mt-1">{{ habitacion.reserva_activa }} reserva(s)</span>
+        {% endif %}
+        <div class="mt-2">
+            <a href="{% url 'detalle_habitacion' habitacion.id %}" class="btn btn-sm btn-outline-primary w-100">
+                <i class="bi bi-eye"></i> Ver
+            </a>
+        </div>
+    </div>
+</div>
+

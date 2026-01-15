@@ -113,3 +113,4 @@ class CheckOutForm(forms.ModelForm):
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Check-in Rápido - Sistema Hotelero{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-box-arrow-in-right"></i> Check-in Rápido</h1>
+        <p class="text-muted">Check-ins pendientes para hoy ({{ hoy }})</p>
+    </div>
+</div>
+
+{% if hacer_checkin %}
+<!-- Formulario de Check-in -->
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h4>Check-in: Reserva #{{ reserva.id }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}<br>
+                    <strong>Habitación:</strong> {{ reserva.habitacion.numero }}<br>
+                    <strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}<br>
+                    <strong>Total:</strong> ${{ reserva.precio_total|floatformat:2 }}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Empleado</label>
+                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Depósito</label>
+                            <input type="number" name="deposito" class="form-control" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="documentos_recibidos" id="documentos_recibidos" checked>
+                        <label class="form-check-label" for="documentos_recibidos">
+                            Documentos recibidos
+                        </label>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'checkin_rapido' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-info btn-lg">
+                            <i class="bi bi-check-circle"></i> Confirmar Check-in
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Lista de Check-ins Pendientes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if checkins_pendientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reserva</th>
+                                <th>Huésped</th>
+                                <th>Habitación</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Total</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in checkins_pendientes %}
+                            <tr>
+                                <td>#{{ reserva.id }}</td>
+                                <td>{{ reserva.huesped.nombre_completo }}</td>
+                                <td>{{ reserva.habitacion.numero }}</td>
+                                <td>{{ reserva.fecha_entrada }}</td>
+                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>
+                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-info">
+                                        <i class="bi bi-check-circle"></i> Check-in
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> No hay check-ins pendientes para hoy.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
