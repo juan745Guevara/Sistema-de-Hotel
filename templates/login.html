@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HotelFlow | Login</title>
+  <link rel="stylesheet" href="styles-auth.css" />
+</head>
+<body>
+  <main class="auth">
+    <section class="shell">
+      <!-- LEFT -->
+      <div class="panel left">
+        <div class="brand">
+          <img src="/Hotel-flow.jpeg" alt="HotelFlow logo">
+          <div class="brand-title">
+            <b>HotelFlow Systems</b>
+            <span>Sistema Hotelero</span>
+          </div>
+        </div>
+
+        <div class="badge">
+          <span class="dot"></span>
+          <span>Plataforma activa</span>
+        </div>
+
+        <h1>Bienvenido 👋</h1>
+        <p>
+          Inicia sesión para entrar al sistema y luego elige tu rol:
+          <b>Admin</b>, <b>Recepción</b> o <b>Limpieza</b>.
+        </p>
+
+        <div class="pills">
+          <div class="pill">
+            <div class="ico">🧑‍💼</div>
+            <div>
+              <b>Admin</b>
+              <small>Usuarios, permisos y reportes</small>
+            </div>
+          </div>
+
+          <div class="pill">
+            <div class="ico">🛎️</div>
+            <div>
+              <b>Recepción</b>
+              <small>Check-in / check-out rápido</small>
+            </div>
+          </div>
+
+          <div class="pill">
+            <div class="ico">🧼</div>
+            <div>
+              <b>Limpieza</b>
+              <small>Estados y tareas por habitación</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="panel right">
+        <div class="toprow">
+          <div class="kicker">Acceso</div>
+          <div class="tag">HotelFlow • v1</div>
+        </div>
+
+        <form class="form" id="loginForm">
+          <div class="error" id="errorBox">Usuario o contraseña inválidos.</div>
+
+          <div class="field">
+            <label for="user">Usuario</label>
+            <input id="user" type="text" placeholder="Ej: recepcion01" required />
+          </div>
+
+          <div class="field">
+            <label for="pass">Contraseña</label>
+            <input id="pass" type="password" placeholder="••••••••" required />
+          </div>
+
+          <div class="row">
+            <label class="check">
+              <input type="checkbox" />
+              Recordarme
+            </label>
+
+            <a class="link" href="#" onclick="alert('Recuperación (demo) 🙂'); return false;">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
+
+          <button class="btn" type="submit">Entrar</button>
+          <div class="sub">© <span id="year"></span> HotelFlow Systems</div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    const form = document.getElementById("loginForm");
+    const errorBox = document.getElementById("errorBox");
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const user = document.getElementById("user").value.trim();
+      const pass = document.getElementById("pass").value.trim();
+
+      // DEMO (sin backend): solo valida que no esté vacío y que pass tenga 3+ caracteres
+      if (!user || pass.length < 3) {
+        errorBox.style.display = "block";
+        return;
+      }
+
+      errorBox.style.display = "none";
+
+      // Guardar usuario para usarlo en roles
+      localStorage.setItem("hf_user", user);
+
+      // Ir a roles
+      window.location.href = "roles.html";
+    });
+  </script>
+</body>
+</html>

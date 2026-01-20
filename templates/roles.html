@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HotelFlow | Roles</title>
+  <link rel="stylesheet" href="styles-auth.css" />
+</head>
+<body>
+  <main class="auth">
+    <section class="rolesShell">
+      <!-- TOP BAR -->
+      <div class="bar">
+        <div class="barLeft">
+          <img src="/Hotel-flow.jpeg" alt="HotelFlow logo">
+          <div>
+            <b>HotelFlow Systems</b>
+            <small>Seleccionar cuenta</small>
+          </div>
+        </div>
+
+        <button class="btnOut" id="logoutBtn">Salir</button>
+      </div>
+
+      <!-- ROLES -->
+      <div class="rolesCard">
+        <h1>Elegir cuenta</h1>
+        <p>Hola, <b id="who">Usuario</b>. Selecciona tu rol para continuar.</p>
+
+        <div class="roleGrid">
+          <div class="role" onclick="chooseRole('admin')">
+            <div class="ricon">🧑‍💼</div>
+            <b>Admin</b>
+            <small>Configuración del hotel, usuarios, permisos y reportes.</small>
+          </div>
+
+          <div class="role" onclick="chooseRole('recepcion')">
+            <div class="ricon">🛎️</div>
+            <b>Recepción</b>
+            <small>Reservas, check-in/check-out, huéspedes y cobros.</small>
+          </div>
+
+          <div class="role" onclick="chooseRole('limpieza')">
+            <div class="ricon">🧼</div>
+            <b>Limpieza</b>
+            <small>Habitaciones por limpiar, estados, notas y prioridades.</small>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="tick">✓</div>
+          <div>
+            <b>Tip:</b> elija la cuenta segun su rol.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const user = localStorage.getItem("hf_user");
+    if (!user) window.location.href = "login.html";
+
+    document.getElementById("who").textContent = user;
+
+    function chooseRole(role){
+      localStorage.setItem("hf_role", role);
+
+      // Aquí ya lo mandas a tu dashboard real
+      // Cambia "dashboard.html" por la ruta que uses
+      window.location.href = "dashboard.html";
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("hf_user");
+      localStorage.removeItem("hf_role");
+      window.location.href = "login.html";
+    });
+  </script>
+</body>
+</html>
+
