@@ -10,23 +10,41 @@
     <div class="container" style="max-width: 420px;">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h1 class="h4 mb-3">Iniciar sesión</h1>
-                <p class="text-muted small mb-4">Accede al panel de tu hotel.</p>
+                <h1 class="h4 mb-2">Paso 2: Usuario, rol y contraseña</h1>
+                <p class="text-muted small mb-3">
+                    Hotel: <strong>{{ login_tenant.name }}</strong>
+                    <span class="text-secondary">({{ login_tenant.slug }})</span>
+                </p>
                 <p class="small text-secondary mb-3">
-                    Usa el <strong>correo electrónico</strong> con el que te registraste, no el nombre del hotel.
+                    Elige el <strong>rol</strong> con el que trabajas en este hotel y escribe tu <strong>nombre de usuario</strong> y <strong>contraseña</strong> (si te enviaron un enlace de acceso, el hotel ya está seleccionado).
+                </p>
+                <p class="small mb-3">
+                    <a href="{% url 'accounts_hotel_identify' %}?cambiar=1">← Elegir otro hotel</a>
                 </p>
                 <form method="post" action="">
                     {% csrf_token %}
+                    {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    {% endif %}
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                     {% endif %}
                     <div class="mb-3">
-                        <label class="form-label" for="id_username">Correo electrónico</label>
-                        <input type="email" name="username" id="id_username" class="form-control" autocomplete="username" required autofocus placeholder="tu@correo.com" value="{{ form.username.value|default:'' }}">
+                        <label class="form-label" for="id_role">Rol en este hotel</label>
+                        <select name="role" id="id_role" class="form-select" required>
+                            <option value="" disabled {% if not posted_role %}selected{% endif %}>Elige tu rol</option>
+                            {% for value, label in role_choices %}
+                            <option value="{{ value }}" {% if posted_role == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="id_username">Nombre de usuario</label>
+                        <input type="text" name="username" id="id_username" class="form-control" autocomplete="username" required autofocus spellcheck="false" placeholder="ej. recepcion1" value="{{ form.username.value|default:'' }}">
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="id_password">Contraseña</label>
-                        <input type="password" name="password" id="id_password" class="form-control" required>
+                        <input type="password" name="password" id="id_password" class="form-control" autocomplete="current-password" required>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Entrar</button>
                 </form>

@@ -5,8 +5,8 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-calendar-check"></i> Reservas</h1>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 stack-sm">
+            <h1 class="h2 mb-0"><i class="bi bi-calendar-check"></i> Reservas</h1>
             <a href="{% url 'crear_reserva' %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Nueva Reserva
             </a>
@@ -22,7 +22,7 @@
             </div>
             <div class="card-body">
                 <form method="get" class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <label class="form-label">Estado</label>
                         <select name="estado" class="form-select">
                             <option value="">Todos</option>
@@ -33,16 +33,16 @@
                             <option value="cancelada" {% if estado_actual == 'cancelada' %}selected{% endif %}>Cancelada</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <label class="form-label">Fecha Desde</label>
                         <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <label class="form-label">Fecha Hasta</label>
                         <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">&nbsp;</label>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
                         <button type="submit" class="btn btn-primary d-block w-100">
                             <i class="bi bi-funnel"></i> Filtrar
                         </button>
@@ -70,6 +70,7 @@
                                 <th>Noches</th>
                                 <th>Precio</th>
                                 <th>Estado</th>
+                                <th>Registró</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -82,11 +83,16 @@
                                 <td>{{ reserva.fecha_entrada }}</td>
                                 <td>{{ reserva.fecha_salida }}</td>
                                 <td>{{ reserva.numero_noches }}</td>
-                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</td>
                                 <td>
                                     <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'checkout' %}primary{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
                                         {{ reserva.get_estado_display }}
                                     </span>
+                                </td>
+                                <td class="small text-muted">
+                                    {% if reserva.creado_por %}
+                                    {{ reserva.creado_por.get_full_name|default:reserva.creado_por.username }}
+                                    {% else %}—{% endif %}
                                 </td>
                                 <td>
                                     <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-primary">

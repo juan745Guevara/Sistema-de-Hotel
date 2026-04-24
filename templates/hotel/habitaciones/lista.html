@@ -5,15 +5,19 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-door-open"></i> Habitaciones</h1>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 stack-sm">
+            <h1 class="h2 mb-0"><i class="bi bi-door-open"></i> Habitaciones</h1>
             <div>
+                {% if request.membership.role != 'limpieza' %}
                 <a href="{% url 'disponibilidad_habitaciones' %}" class="btn btn-info me-2">
                     <i class="bi bi-calendar-range"></i> Ver Disponibilidad
                 </a>
+                {% endif %}
+                {% if request.membership.role == 'admin' %}
                 <a href="{% url 'crear_habitacion' %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Nueva Habitación
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -42,7 +46,8 @@
                         <label class="form-label">Tipo</label>
                         <select name="tipo" class="form-select">
                             <option value="">Todos</option>
-                            <option value="sencilla" {% if tipo_actual == 'sencilla' %}selected{% endif %}>Sencilla</option>
+                            <option value="simple" {% if tipo_actual == 'simple' %}selected{% endif %}>Simple</option>
+                            <option value="matrimonial" {% if tipo_actual == 'matrimonial' %}selected{% endif %}>Matrimonial</option>
                             <option value="doble" {% if tipo_actual == 'doble' %}selected{% endif %}>Doble</option>
                             <option value="suite" {% if tipo_actual == 'suite' %}selected{% endif %}>Suite</option>
                             <option value="presidencial" {% if tipo_actual == 'presidencial' %}selected{% endif %}>Presidencial</option>
@@ -77,16 +82,25 @@
                     </span>
                 </p>
                 <p><strong>Capacidad:</strong> {{ habitacion.capacidad }} personas</p>
-                <p><strong>Precio/Noche:</strong> ${{ habitacion.precio_noche|floatformat:2 }}</p>
+                <p><strong>Precio/Noche:</strong> {{ MONEDA_SIMBOLO }}{{ habitacion.precio_noche|floatformat:2 }}</p>
                 <p><strong>Reservas Activas:</strong> {{ habitacion.reservas_activas }}</p>
             </div>
             <div class="card-footer">
                 <a href="{% url 'detalle_habitacion' habitacion.id %}" class="btn btn-primary btn-sm">
                     <i class="bi bi-eye"></i> Ver Detalles
                 </a>
+                {% if request.membership.role == 'admin' %}
                 <a href="{% url 'editar_habitacion' habitacion.id %}" class="btn btn-warning btn-sm">
                     <i class="bi bi-pencil"></i> Editar
                 </a>
+                <form method="post" action="{% url 'eliminar_habitacion' habitacion.id %}" class="d-inline"
+                      onsubmit="return confirm('¿Eliminar la habitación {{ habitacion.numero }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </form>
+                {% endif %}
             </div>
         </div>
     </div>

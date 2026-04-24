@@ -5,88 +5,114 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1><i class="bi bi-door-open"></i> Walk-in (Check-in sin Reserva)</h1>
-        <p class="text-muted">Registre un huésped que llega sin reserva previa</p>
+        <h1><i class="bi bi-door-open"></i> Walk-in (sin reserva previa)</h1>
+        <p class="text-muted mb-0">El huésped llega hoy: la <strong>fecha de entrada</strong> es la de hoy y el <strong>check-in</strong> guarda la fecha y hora al confirmar. Puede registrar <strong>noches</strong> o una estadía <strong>por horas</strong> (por ejemplo 3 h) con salida prevista y tarifa.</p>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-12 col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header bg-secondary text-white">
-                <h4><i class="bi bi-person-plus"></i> Nuevo Walk-in</h4>
+                <h4 class="mb-0"><i class="bi bi-person-plus"></i> Nuevo walk-in</h4>
             </div>
             <div class="card-body">
+                <div class="alert alert-info small mb-4">
+                    <i class="bi bi-calendar-check"></i> Entrada de la estadía: <strong>{{ entrada_automatica|date:"d/m/Y" }}</strong>
+                    (hoy, hora local). La hora exacta del ingreso queda en el check-in al confirmar
+                    (<strong>{{ entrada_automatica|date:"d/m/Y H:i" }}</strong> en este momento).
+                </div>
+
                 <form method="post" id="walkin-form">
                     {% csrf_token %}
                     
-                    <h5 class="mb-3">Datos del Huésped</h5>
+                    <h5 class="mb-3">Datos del huésped</h5>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">DNI / Documento <span class="text-danger">*</span></label>
-                            <input type="text" name="documento_identidad" id="documento_identidad" class="form-control" 
-                                   maxlength="8" pattern="[0-9]{8}" required autofocus>
+                            <label class="form-label">DNI <span class="text-danger">*</span></label>
+                            <input type="text" name="documento_identidad" id="documento_identidad" class="form-control"
+                                   maxlength="50" required autofocus placeholder="Ej. 12345678">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
-                            <input type="text" name="nombre" id="nombre" class="form-control" required>
+                            <label class="form-label">Nombres <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" required placeholder="Nombres">
                         </div>
                     </div>
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Apellidos <span class="text-danger">*</span></label>
-                            <input type="text" name="apellidos" id="apellidos" class="form-control" required>
+                            <input type="text" name="apellidos" id="apellidos" class="form-control" required placeholder="Apellidos">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" id="email" class="form-control">
+                            <label class="form-label">Lugar de procedencia <span class="text-danger">*</span></label>
+                            <input type="text" name="lugar_procedencia" id="lugar_procedencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de origen">
                         </div>
                     </div>
                     
+                    <h5 class="mb-3 mt-4">Habitación y estadía</h5>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Teléfono</label>
-                            <input type="text" name="telefono" id="telefono" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Habitación Disponible <span class="text-danger">*</span></label>
+                            <label class="form-label">Habitación <span class="text-danger">*</span></label>
                             <select name="habitacion" class="form-select" required>
                                 <option value="">Seleccione una habitación</option>
                                 {% for habitacion in habitaciones %}
                                 <option value="{{ habitacion.id }}">
-                                    Hab. {{ habitacion.numero }} - {{ habitacion.get_tipo_display }} (${{ habitacion.precio_noche }}/noche)
+                                    Hab. {{ habitacion.numero }} — {{ habitacion.get_tipo_display }} ({{ MONEDA_SIMBOLO }}{{ habitacion.precio_noche|floatformat:2 }}/noche)
                                 </option>
                                 {% endfor %}
                             </select>
                         </div>
-                    </div>
-                    
-                    <h5 class="mb-3 mt-4">Datos de la Reserva</h5>
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Fecha de Entrada <span class="text-danger">*</span></label>
-                            <input type="date" name="fecha_entrada" class="form-control" value="{{ fecha_hoy }}" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Fecha de Salida <span class="text-danger">*</span></label>
-                            <input type="date" name="fecha_salida" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Número de Huéspedes <span class="text-danger">*</span></label>
+                        <div class="col-md-6">
+                            <label class="form-label">Huéspedes <span class="text-danger">*</span></label>
                             <input type="number" name="numero_huespedes" class="form-control" value="1" min="1" required>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label d-block">Tipo de estadía</label>
+                        <div class="btn-group" role="group" aria-label="Tipo de estadía">
+                            <input type="radio" class="btn-check" name="tipo_estadia" id="tipo_noches" value="noches" checked autocomplete="off">
+                            <label class="btn btn-outline-primary" for="tipo_noches">Por noches</label>
+                            <input type="radio" class="btn-check" name="tipo_estadia" id="tipo_horas" value="horas" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="tipo_horas">Por horas</label>
+                        </div>
+                        <small class="text-muted d-block mt-1">Por horas: se guarda la hora prevista de salida (p. ej. 3 h) y el total sugerido (proporcional al día, mínimo 15 % del precio por noche) o el monto que acuerde con el huésped.</small>
+                    </div>
+                    <div class="row mb-3" id="walkin-bloque-noches">
+                        <div class="col-md-4">
+                            <label class="form-label">Noches <span class="text-danger">*</span></label>
+                            <input type="number" name="noches" id="walkin-noches" class="form-control" value="1" min="1" max="365">
+                            <small class="text-muted">Salida en calendario: hoy + noches.</small>
+                        </div>
+                    </div>
+                    <div class="row mb-3 d-none" id="walkin-bloque-horas">
+                        <div class="col-md-4">
+                            <label class="form-label">Duración (horas)</label>
+                            <input type="number" name="duracion_horas" id="walkin-duracion-horas" class="form-control" value="3" min="1" max="72">
+                            <small class="text-muted">Entre 1 y 72 h. Salida prevista = ahora + horas.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tarifa acordada (soles)</label>
+                            <input type="number" name="precio_acordado" id="walkin-precio-acordado" class="form-control" step="0.01" min="0" placeholder="Opcional">
+                            <small class="text-muted">Vacío = tarifa sugerida automática.</small>
+                        </div>
+                    </div>
                     
-                    <h5 class="mb-3 mt-4">Check-in Inmediato</h5>
+                    <h5 class="mb-3 mt-4">Check-in inmediato</h5>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Empleado</label>
-                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
+                            <label class="form-label">Depósito (soles)</label>
+                            <input type="number" name="deposito" class="form-control" step="0.01" min="0" value="0" id="walkin-deposito">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Depósito</label>
-                            <input type="number" name="deposito" class="form-control" step="0.01" value="0">
+                            <label class="form-label">Método del depósito</label>
+                            <select name="metodo_deposito" class="form-select" id="walkin-metodo-deposito">
+                                <option value="">Sin depósito (monto 0)</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="yape">Yape</option>
+                                <option value="transferencia">Transferencia</option>
+                            </select>
+                            <small class="text-muted">Si hay depósito, indique cómo se recibió.</small>
                         </div>
                     </div>
                     <div class="form-check mb-3">
@@ -101,7 +127,7 @@
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-secondary btn-lg">
-                            <i class="bi bi-check-circle"></i> Registrar Walk-in
+                            <i class="bi bi-check-circle"></i> Registrar walk-in
                         </button>
                     </div>
                 </form>
@@ -109,13 +135,27 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // No-op: bloque reservado para scripts específicos de walk-in.
-});
+(function () {
+    var rN = document.getElementById('tipo_noches');
+    var rH = document.getElementById('tipo_horas');
+    var bN = document.getElementById('walkin-bloque-noches');
+    var bH = document.getElementById('walkin-bloque-horas');
+    var inpN = document.getElementById('walkin-noches');
+    function sync() {
+        if (rH && rH.checked) {
+            bN.classList.add('d-none');
+            bH.classList.remove('d-none');
+            if (inpN) inpN.removeAttribute('required');
+        } else {
+            bN.classList.remove('d-none');
+            bH.classList.add('d-none');
+            if (inpN) inpN.setAttribute('required', 'required');
+        }
+    }
+    if (rN) rN.addEventListener('change', sync);
+    if (rH) rH.addEventListener('change', sync);
+    sync();
+})();
 </script>
 {% endblock %}
-

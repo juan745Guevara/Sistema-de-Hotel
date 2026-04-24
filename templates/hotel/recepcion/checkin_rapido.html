@@ -13,7 +13,7 @@
 {% if hacer_checkin %}
 <!-- Formulario de Check-in -->
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-12 col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header bg-info text-white">
                 <h4>Check-in: Reserva #{{ reserva.id }}</h4>
@@ -23,19 +23,30 @@
                     <strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}<br>
                     <strong>Habitación:</strong> {{ reserva.habitacion.numero }}<br>
                     <strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}<br>
-                    <strong>Total:</strong> ${{ reserva.precio_total|floatformat:2 }}
+                    <strong>Total:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}
                 </div>
                 
                 <form method="post">
                     {% csrf_token %}
+                    <div class="alert alert-secondary py-2 small mb-3">
+                        <i class="bi bi-person-badge"></i> Check-in registrado a nombre de: <strong>{{ empleado_registrado }}</strong> (cuenta en sesión).
+                    </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Empleado</label>
-                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
+                            <label class="form-label">Depósito (soles)</label>
+                            <input type="number" name="deposito" class="form-control" step="0.01" min="0" value="0">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Depósito</label>
-                            <input type="number" name="deposito" class="form-control" step="0.01" value="0">
+                            <label class="form-label">Método del depósito</label>
+                            <select name="metodo_deposito" class="form-select">
+                                <option value="">Sin depósito (monto 0)</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="yape">Yape</option>
+                                <option value="transferencia">Transferencia</option>
+                            </select>
+                            <small class="text-muted">Obligatorio si el depósito es mayor a 0.</small>
                         </div>
                     </div>
                     <div class="form-check mb-3">
@@ -83,7 +94,7 @@
                                 <td>{{ reserva.habitacion.numero }}</td>
                                 <td>{{ reserva.fecha_entrada }}</td>
                                 <td>{{ reserva.fecha_salida }}</td>
-                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</td>
                                 <td>
                                     <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-info">
                                         <i class="bi bi-check-circle"></i> Check-in

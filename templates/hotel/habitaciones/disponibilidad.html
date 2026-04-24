@@ -65,7 +65,7 @@
                                     </span>
                                 </td>
                                 <td>{{ item.habitacion.capacidad }}</td>
-                                <td>${{ item.habitacion.precio_noche|floatformat:2 }}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ item.habitacion.precio_noche|floatformat:2 }}</td>
                                 <td>
                                     {% if item.disponible %}
                                     <span class="badge bg-success">

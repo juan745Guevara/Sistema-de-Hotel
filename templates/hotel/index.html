@@ -5,10 +5,11 @@
 
 {% block content %}
 <!-- Acciones Rápidas -->
+{% if request.membership.role != 'limpieza' %}
 <div class="mb-4">
     <h2 class="mb-3 fw-bold">Acciones Rápidas</h2>
     <div class="row g-3">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'checkin_rapido' %}" class="action-card info">
                 <div class="action-icon">
                     <i class="bi bi-box-arrow-in-right"></i>
@@ -17,7 +18,7 @@
                 <p class="text-muted small mb-0">Registrar entrada</p>
             </a>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'checkout_rapido' %}" class="action-card warning">
                 <div class="action-icon">
                     <i class="bi bi-box-arrow-right"></i>
@@ -26,7 +27,7 @@
                 <p class="text-muted small mb-0">Registrar salida</p>
             </a>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'walkin' %}" class="action-card secondary">
                 <div class="action-icon">
                     <i class="bi bi-door-open"></i>
@@ -37,12 +38,13 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Estadísticas -->
 <div class="mb-4">
     <h2 class="mb-3 fw-bold">Estado del Hotel</h2>
     <div class="row g-3">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <div class="stat-card success">
                 <div class="stat-icon">
                     <i class="bi bi-door-open"></i>
@@ -52,7 +54,7 @@
                 <small class="text-muted">de {{ total_habitaciones }} totales</small>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <div class="stat-card danger">
                 <div class="stat-icon">
                     <i class="bi bi-person-fill"></i>
@@ -61,7 +63,7 @@
                 <div class="stat-label">Habitaciones Ocupadas</div>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <div class="stat-card info">
                 <div class="stat-icon">
                     <i class="bi bi-bucket"></i>
@@ -70,7 +72,7 @@
                 <div class="stat-label">En Limpieza</div>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <div class="stat-card primary">
                 <div class="stat-icon">
                     <i class="bi bi-calendar-check"></i>
@@ -84,6 +86,7 @@
 </div>
 
 <!-- Tareas del Día -->
+{% if request.membership.role != 'limpieza' %}
 <div class="row g-4">
     <!-- Check-ins Pendientes -->
     <div class="col-lg-6">
@@ -144,9 +147,10 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="mb-1 fw-semibold">{{ reserva.huesped.nombre_completo }}</h6>
-                                <div class="d-flex gap-3 text-muted small">
+                                <div class="d-flex gap-3 text-muted small flex-wrap align-items-center">
                                     <span><i class="bi bi-door-open me-1"></i>Hab. {{ reserva.habitacion.numero }}</span>
-                                    <span><i class="bi bi-calendar me-1"></i>Salida: {{ reserva.fecha_salida }}</span>
+                                    <span><i class="bi bi-calendar me-1"></i>Salida: {{ reserva.fecha_salida }}{% if reserva.fecha_hora_salida_prevista %} · {{ reserva.descripcion_salida_prevista }}{% endif %}</span>
+                                    {% if reserva.fecha_salida > hoy %}<span class="badge rounded-pill bg-secondary">Puede salir hoy</span>{% endif %}
                                 </div>
                             </div>
                             <a href="{% url 'checkout_rapido' %}?reserva_id={{ reserva.id }}" class="btn btn-sm btn-warning">
@@ -167,6 +171,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Alertas -->
 {% if habitaciones_limpieza_largas %}
@@ -192,7 +197,7 @@
 <div class="mt-4">
     <h2 class="mb-3 fw-bold">Accesos Rápidos</h2>
     <div class="row g-3">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'tablero_habitaciones' %}" class="card text-decoration-none h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-kanban text-primary" style="font-size: 2rem;"></i>
@@ -201,7 +206,8 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-3 col-sm-6">
+        {% if request.membership.role != 'limpieza' %}
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'calendario_ocupacion' %}" class="card text-decoration-none h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-calendar3 text-primary" style="font-size: 2rem;"></i>
@@ -210,7 +216,8 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-3 col-sm-6">
+        {% endif %}
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'lista_habitaciones' %}" class="card text-decoration-none h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-door-open text-primary" style="font-size: 2rem;"></i>
@@ -219,7 +226,8 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-3 col-sm-6">
+        {% if request.membership.role != 'limpieza' %}
+        <div class="col-12 col-sm-6 col-md-3">
             <a href="{% url 'lista_reservas' %}" class="card text-decoration-none h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-calendar-check text-primary" style="font-size: 2rem;"></i>
@@ -228,6 +236,7 @@
                 </div>
             </a>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

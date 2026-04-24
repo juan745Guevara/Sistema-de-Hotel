@@ -3,31 +3,36 @@
 {% block title %}Reporte de Ocupación - Sistema Hotelero{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
-        <h1><i class="bi bi-calendar-range"></i> Reporte de Ocupación</h1>
+        <h1 class="h2 mb-1"><i class="bi bi-calendar-range"></i> Reporte de ocupación</h1>
+        <p class="text-muted mb-0">Período: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong></p>
     </div>
+</div>
+
+<div class="alert alert-secondary py-2 small mb-4">
+    Por cada día se cuentan reservas con estancia esa noche (<code>entrada ≤ día &lt; salida</code>), <strong>excluyendo canceladas</strong>.
+    Incluye reservas ya en check-out si la noche aún pertenece al rango de fechas de la estancia.
 </div>
 
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Filtros</h5>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Filtros</h5>
             </div>
             <div class="card-body">
-                <form method="get" class="row g-3">
-                    <div class="col-md-5">
-                        <label class="form-label">Fecha Desde</label>
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label">Desde</label>
                         <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
                     </div>
-                    <div class="col-md-5">
-                        <label class="form-label">Fecha Hasta</label>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label">Hasta</label>
                         <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary d-block w-100">
+                    <div class="col-md-4 col-lg-3">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-search"></i> Generar
                         </button>
                     </div>
@@ -37,28 +42,31 @@
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card text-white bg-primary">
+        <div class="card h-100 border-0 shadow-sm text-white bg-primary">
             <div class="card-body">
-                <h5>Total Reservas</h5>
-                <h2>{{ total_reservas }}</h2>
+                <h6 class="text-white-50 text-uppercase small">Reservas (entrada en período)</h6>
+                <h3 class="mb-0">{{ total_reservas }}</h3>
+                <p class="small mb-0 mt-2 opacity-75">Sin canceladas</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-white bg-success">
+        <div class="card h-100 border-0 shadow-sm text-white bg-success">
             <div class="card-body">
-                <h5>Ingresos Totales</h5>
-                <h2>${{ ingresos_totales|floatformat:2 }}</h2>
+                <h6 class="text-white-50 text-uppercase small">Ingresos reservas</h6>
+                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_totales|floatformat:2 }}</h3>
+                <p class="small mb-0 mt-2 opacity-75">Suma de precios</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-white bg-info">
+        <div class="card h-100 border-0 shadow-sm text-white bg-info">
             <div class="card-body">
-                <h5>Ocupación Promedio</h5>
-                <h2>{{ ocupacion_promedio }}%</h2>
+                <h6 class="text-white-50 text-uppercase small">Ocupación media</h6>
+                <h3 class="mb-0">{{ ocupacion_promedio }}%</h3>
+                <p class="small mb-0 mt-2 opacity-75">Promedio diario del % de habitaciones ocupadas</p>
             </div>
         </div>
     </div>
@@ -66,34 +74,36 @@
 
 <div class="row">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Ocupación por Día</h5>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0">Ocupación por día</h5>
+                <span class="small text-muted">{{ total_habitaciones }} habitación(es) en inventario</span>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
-                                <th>Habitaciones Ocupadas</th>
-                                <th>Habitaciones Disponibles</th>
-                                <th>Total Habitaciones</th>
-                                <th>% Ocupación</th>
+                                <th class="text-end">Ocupadas</th>
+                                <th class="text-end">Disponibles</th>
+                                <th class="text-end">Total</th>
+                                <th style="min-width: 12rem;">% Ocupación</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for dia in ocupacion_por_dia %}
                             <tr>
                                 <td>{{ dia.fecha|date:"d/m/Y" }}</td>
-                                <td>{{ dia.ocupadas }}</td>
-                                <td>{{ dia.disponibles }}</td>
-                                <td>{{ total_habitaciones }}</td>
+                                <td class="text-end">{{ dia.ocupadas }}</td>
+                                <td class="text-end">{{ dia.disponibles }}</td>
+                                <td class="text-end">{{ total_habitaciones }}</td>
                                 <td>
-                                    <div class="progress">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ dia.porcentaje }}%">
-                                            {{ dia.porcentaje }}%
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 0.65rem;">
+                                            <div class="progress-bar" role="progressbar" style="width: {{ dia.porcentaje }}%;" aria-valuenow="{{ dia.porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
+                                        <span class="small text-nowrap">{{ dia.porcentaje }}%</span>
                                     </div>
                                 </td>
                             </tr>
@@ -106,13 +116,13 @@
     </div>
 </div>
 
+{% include 'hotel/reportes/_movimientos_estadia.html' %}
+
 <div class="row mt-4">
     <div class="col-12">
-        <a href="{% url 'reportes' %}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Volver a Reportes
+        <a href="{% url 'reportes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a reportes
         </a>
     </div>
 </div>
 {% endblock %}
-
-

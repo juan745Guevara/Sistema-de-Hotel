@@ -2,10 +2,16 @@ from django.urls import path
 from . import auth_views, views
 
 urlpatterns = [
+    path('accounts/hotel/', auth_views.accounts_hotel_identify, name='accounts_hotel_identify'),
     path('accounts/login/', auth_views.accounts_login, name='accounts_login'),
     path('accounts/signup/', auth_views.accounts_signup, name='accounts_signup'),
     path('accounts/logout/', auth_views.accounts_logout, name='accounts_logout'),
     path('accounts/select-tenant/', auth_views.select_tenant, name='select_tenant'),
+    path(
+        'accounts/ingreso/<slug:tenant_slug>/',
+        auth_views.accounts_ingreso_con_hotel,
+        name='accounts_ingreso_con_hotel',
+    ),
     # Página principal (Dashboard de recepción)
     path('', views.index, name='index'),
     
@@ -29,6 +35,16 @@ urlpatterns = [
     path('habitaciones/crear/', views.crear_habitacion, name='crear_habitacion'),
     path('habitaciones/<int:habitacion_id>/', views.detalle_habitacion, name='detalle_habitacion'),
     path('habitaciones/<int:habitacion_id>/editar/', views.editar_habitacion, name='editar_habitacion'),
+    path(
+        'habitaciones/<int:habitacion_id>/eliminar/',
+        views.eliminar_habitacion,
+        name='eliminar_habitacion',
+    ),
+    path(
+        'habitaciones/<int:habitacion_id>/estado/',
+        views.actualizar_estado_habitacion,
+        name='actualizar_estado_habitacion',
+    ),
     path('habitaciones/disponibilidad/', views.disponibilidad_habitaciones, name='disponibilidad_habitaciones'),
     
     # Check-in
@@ -39,6 +55,11 @@ urlpatterns = [
     path('checkout/', views.lista_checkouts, name='lista_checkouts'),
     path('checkout/<int:reserva_id>/', views.realizar_checkout, name='realizar_checkout'),
     
+    # Equipo (solo administrador del hotel)
+    path('equipo/', views.lista_equipo, name='lista_equipo'),
+    path('equipo/nuevo/', views.crear_equipo, name='crear_equipo'),
+    path('equipo/<int:membership_id>/eliminar/', views.eliminar_equipo, name='eliminar_equipo'),
+
     # Reportes
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/ocupacion/', views.reporte_ocupacion, name='reporte_ocupacion'),

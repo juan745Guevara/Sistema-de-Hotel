@@ -5,11 +5,22 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-door-open"></i> Habitación {{ habitacion.numero }}</h1>
-            <a href="{% url 'editar_habitacion' habitacion.id %}" class="btn btn-warning">
-                <i class="bi bi-pencil"></i> Editar
-            </a>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h1 class="mb-0"><i class="bi bi-door-open"></i> Habitación {{ habitacion.numero }}</h1>
+            {% if request.membership.role == 'admin' %}
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'editar_habitacion' habitacion.id %}" class="btn btn-warning">
+                    <i class="bi bi-pencil"></i> Editar habitación
+                </a>
+                <form method="post" action="{% url 'eliminar_habitacion' habitacion.id %}" class="d-inline"
+                      onsubmit="return confirm('¿Eliminar la habitación {{ habitacion.numero }}?{% if habitacion.reservas.count %} También se borrarán {{ habitacion.reservas.count }} reserva(s) del historial (no activas).{% endif %}');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar habitación
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -29,7 +40,7 @@
                     </span>
                 </p>
                 <p><strong>Capacidad:</strong> {{ habitacion.capacidad }} personas</p>
-                <p><strong>Precio por Noche:</strong> ${{ habitacion.precio_noche|floatformat:2 }}</p>
+                <p><strong>Precio por Noche:</strong> {{ MONEDA_SIMBOLO }}{{ habitacion.precio_noche|floatformat:2 }}</p>
                 {% if habitacion.descripcion %}
                 <p><strong>Descripción:</strong> {{ habitacion.descripcion }}</p>
                 {% endif %}
@@ -40,6 +51,7 @@
         </div>
     </div>
     
+    {% if request.membership.role != 'limpieza' %}
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
@@ -77,8 +89,47 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
+{% if request.membership.role == 'admin' or request.membership.role == 'limpieza' %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-header fw-semibold">
+                <i class="bi bi-arrow-repeat me-1"></i>Cambiar estado de la habitación
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'actualizar_estado_habitacion' habitacion.id %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-8">
+                        <label class="form-label small text-muted">Nuevo estado</label>
+                        <select name="estado" class="form-select" required>
+                            {% for value, label in habitacion.ESTADO_CHOICES %}
+                                {% if request.membership.role == 'limpieza' %}
+                                    {% if value != 'ocupada' and value != 'reservada' %}
+                                    <option value="{{ value }}" {% if habitacion.estado == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endif %}
+                                {% else %}
+                                    <option value="{{ value }}" {% if habitacion.estado == value %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">Guardar</button>
+                    </div>
+                </form>
+                {% if request.membership.role == 'limpieza' %}
+                <p class="text-muted small mb-0 mt-2">Solo puedes gestionar estados cuando la habitación no está ocupada ni reservada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if request.membership.role != 'limpieza' %}
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -128,6 +179,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="row mt-4">
     <div class="col-12">

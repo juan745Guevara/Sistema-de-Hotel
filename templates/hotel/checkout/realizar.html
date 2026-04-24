@@ -22,9 +22,9 @@
                 <p><strong>Habitación:</strong> {{ reserva.habitacion.numero }}</p>
                 <p><strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}</p>
                 <p><strong>Noches:</strong> {{ reserva.numero_noches }}</p>
-                <p><strong>Total a Pagar:</strong> ${{ reserva.precio_total|floatformat:2 }}</p>
+                <p><strong>Total a Pagar:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
                 {% if reserva.checkin %}
-                <p><strong>Depósito:</strong> ${{ reserva.checkin.deposito|floatformat:2 }}</p>
+                <p><strong>Depósito:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.checkin.deposito|floatformat:2 }}</p>
                 {% endif %}
             </div>
         </div>
@@ -35,6 +35,12 @@
                 <h5>Datos del Check-out</h5>
             </div>
             <div class="card-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-clock-history"></i> La <strong>fecha y hora de salida</strong> se guardan automáticamente al confirmar. Puede registrar check-out aunque la <strong>fecha de salida</strong> de la reserva sea posterior (salida anticipada, p. ej. pagó la noche y se va en la noche).
+                </div>
+                <p class="small text-muted mb-3">
+                    <i class="bi bi-person-badge"></i> Quedará asociado al usuario <strong>{{ request.user.get_username }}</strong>.
+                </p>
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}

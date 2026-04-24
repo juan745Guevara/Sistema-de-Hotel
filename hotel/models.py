@@ -12,6 +12,7 @@ Este módulo contiene todos los modelos de datos del sistema:
 from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -51,11 +52,13 @@ class Tenant(models.Model):
 class Membership(models.Model):
     """Usuario perteneciente a un hotel."""
 
-    ROLE_OWNER = 'owner'
-    ROLE_STAFF = 'staff'
+    ROLE_ADMIN = 'admin'
+    ROLE_RECEPCION = 'recepcion'
+    ROLE_LIMPIEZA = 'limpieza'
     ROLE_CHOICES = [
-        (ROLE_OWNER, 'Propietario'),
-        (ROLE_STAFF, 'Personal'),
+        (ROLE_ADMIN, 'Administrador'),
+        (ROLE_RECEPCION, 'Recepción'),
+        (ROLE_LIMPIEZA, 'Personal de limpieza'),
     ]
 
     user = models.ForeignKey(
@@ -68,7 +71,7 @@ class Membership(models.Model):
         on_delete=models.CASCADE,
         related_name='memberships',
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_STAFF)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_RECEPCION)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -106,13 +109,15 @@ class Habitacion(models.Model):
         (ESTADO_RESERVADA, 'Reservada'),
     ]
     
-    TIPO_SENCILLA = 'sencilla'
+    TIPO_SIMPLE = 'simple'
+    TIPO_MATRIMONIAL = 'matrimonial'
     TIPO_DOBLE = 'doble'
     TIPO_SUITE = 'suite'
     TIPO_PRESIDENCIAL = 'presidencial'
-    
+
     TIPO_CHOICES = [
-        (TIPO_SENCILLA, 'Sencilla'),
+        (TIPO_SIMPLE, 'Simple'),
+        (TIPO_MATRIMONIAL, 'Matrimonial'),
         (TIPO_DOBLE, 'Doble'),
         (TIPO_SUITE, 'Suite'),
         (TIPO_PRESIDENCIAL, 'Presidencial'),
@@ -161,8 +166,8 @@ class Habitacion(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name='Precio por Noche',
-        help_text='Precio base por noche en la moneda local'
+        verbose_name='Precio por noche (soles)',
+        help_text='Precio base por noche en soles (PEN)'
     )
     
     # ========== CAMPOS OPCIONALES (Información adicional) ==========
@@ -242,20 +247,26 @@ class Huesped(models.Model):
 
     nombre = models.CharField(
         max_length=100,
-        verbose_name='Nombre',
-        help_text='Nombre(s) del huésped'
+        verbose_name='Nombres',
+        help_text='Nombres del huésped'
     )
-    
+
     apellidos = models.CharField(
         max_length=100,
         verbose_name='Apellidos',
         help_text='Apellidos del huésped'
     )
-    
+
     documento_identidad = models.CharField(
         max_length=50,
-        verbose_name='Documento de Identidad',
-        help_text='Pasaporte, DNI, CURP u otro documento oficial (único por hotel)'
+        verbose_name='DNI',
+        help_text='Documento nacional de identidad (único por hotel)'
+    )
+
+    lugar_procedencia = models.CharField(
+        max_length=200,
+        verbose_name='Lugar de procedencia',
+        help_text='Ciudad o lugar de origen del huésped',
     )
     
     fecha_nacimiento = models.DateField(
@@ -273,14 +284,18 @@ class Huesped(models.Model):
     # ========== CAMPOS DE CONTACTO ==========
     
     email = models.EmailField(
+        blank=True,
+        default='',
         verbose_name='Email',
-        help_text='Correo electrónico de contacto'
+        help_text='Correo electrónico de contacto (opcional)'
     )
-    
+
     telefono = models.CharField(
         max_length=20,
+        blank=True,
+        default='',
         verbose_name='Teléfono',
-        help_text='Número de teléfono de contacto'
+        help_text='Número de teléfono de contacto (opcional)'
     )
     
     # ========== CAMPOS OPCIONALES (Preferencias y Notas) ==========
@@ -405,6 +420,16 @@ class Reserva(models.Model):
         verbose_name='Fecha de Salida',
         help_text='Fecha en que el huésped saldrá del hotel'
     )
+
+    fecha_hora_salida_prevista = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Salida prevista (fecha y hora)',
+        help_text=(
+            'Opcional: para estadías cortas por horas (walk-in u otras), hora prevista de check-out. '
+            'Si no aplica, quede vacío y se usa solo la fecha de salida.'
+        ),
+    )
     
     # ========== CAMPOS DE LA RESERVA ==========
     
@@ -418,8 +443,8 @@ class Reserva(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name='Precio Total',
-        help_text='Precio total calculado automáticamente (noches × precio/noche)'
+        verbose_name='Precio total (soles)',
+        help_text='Total en soles (noches × precio/noche)'
     )
     
     estado = models.CharField(
@@ -434,6 +459,16 @@ class Reserva(models.Model):
         blank=True,
         verbose_name='Notas',
         help_text='Notas adicionales sobre la reserva'
+    )
+
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reservas_creadas',
+        verbose_name='Creada por',
+        help_text='Usuario (p. ej. administrador o recepción) que registró la reserva en el sistema.',
     )
     
     # ========== CAMPOS DE AUDITORÍA ==========
@@ -480,19 +515,66 @@ class Reserva(models.Model):
         if self.fecha_entrada and self.fecha_salida:
             return (self.fecha_salida - self.fecha_entrada).days
         return 0
+
+    @property
+    def es_estadia_por_horas(self):
+        """True si hay salida prevista con hora (estadía corta, típico walk-in)."""
+        return self.fecha_hora_salida_prevista is not None
+
+    def descripcion_salida_prevista(self):
+        """Texto para UI: hora de salida prevista o vacío."""
+        if not self.fecha_hora_salida_prevista:
+            return ''
+        return timezone.localtime(self.fecha_hora_salida_prevista).strftime('%d/%m/%Y %H:%M')
+
+    def horas_desde_checkin_hasta_salida_prevista(self):
+        """Horas entre el check-in real y la salida prevista; None si no aplica."""
+        if not self.fecha_hora_salida_prevista:
+            return None
+        try:
+            ini = self.checkin.fecha_hora
+        except ObjectDoesNotExist:
+            return None
+        secs = (self.fecha_hora_salida_prevista - ini).total_seconds()
+        if secs <= 0:
+            return 0.0
+        return round(secs / 3600, 2)
     
     def calcular_precio_total(self):
         """
-        Calcula el precio total basado en las noches y el precio de la habitación.
+        Calcula el precio total basado en las noches y el precio de la habitación,
+        o proporcional por horas si hay salida prevista sin noches completas.
         
         Returns:
             Decimal: Precio total calculado
         """
+        from decimal import Decimal
+
+        if not self.habitacion_id:
+            return Decimal('0')
+
+        if self.fecha_hora_salida_prevista:
+            try:
+                ini = self.checkin.fecha_hora
+            except ObjectDoesNotExist:
+                ini = timezone.now()
+            fin = self.fecha_hora_salida_prevista
+            if fin > ini:
+                horas = Decimal(str((fin - ini).total_seconds())) / Decimal(3600)
+                horas = max(horas, Decimal('1') / Decimal(60))
+                proporcional = (self.habitacion.precio_noche * (horas / Decimal(24))).quantize(
+                    Decimal('0.01')
+                )
+                minimo_corta = (self.habitacion.precio_noche * Decimal('0.15')).quantize(
+                    Decimal('0.01')
+                )
+                return max(proporcional, minimo_corta)
+
         if self.fecha_entrada and self.fecha_salida and self.habitacion:
             noches = self.numero_noches
             if noches > 0:
                 return noches * self.habitacion.precio_noche
-        return 0
+        return Decimal('0')
     
     def save(self, *args, **kwargs):
         """
@@ -544,7 +626,16 @@ class CheckIn(models.Model):
         verbose_name='Documentos Recibidos',
         help_text='Indica si se recibieron los documentos de identidad'
     )
-    
+
+    DEPOSITO_EFECTIVO = 'efectivo'
+    DEPOSITO_YAPE = 'yape'
+    DEPOSITO_TRANSFERENCIA = 'transferencia'
+    METODO_DEPOSITO_CHOICES = [
+        (DEPOSITO_EFECTIVO, 'Efectivo'),
+        (DEPOSITO_YAPE, 'Yape'),
+        (DEPOSITO_TRANSFERENCIA, 'Transferencia'),
+    ]
+
     deposito = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -552,6 +643,15 @@ class CheckIn(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name='Depósito',
         help_text='Depósito recibido al momento del check-in'
+    )
+
+    metodo_deposito = models.CharField(
+        max_length=20,
+        choices=METODO_DEPOSITO_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Método del depósito',
+        help_text='Cómo se recibió el depósito (Yape, efectivo o transferencia)',
     )
     
     notas = models.TextField(
@@ -618,14 +718,17 @@ class CheckOut(models.Model):
         verbose_name='Fecha y Hora',
         help_text='Fecha y hora en que se realizó el check-out'
     )
-    
-    empleado = models.CharField(
-        max_length=100,
+
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        verbose_name='Empleado',
-        help_text='Nombre del empleado que realizó el check-out'
+        related_name='checkouts_registrados',
+        verbose_name='Registrado por',
+        help_text='Usuario de la cuenta que registró el check-out',
     )
-    
+
     # ========== CAMPOS DE PAGO ==========
     
     total_pagado = models.DecimalField(

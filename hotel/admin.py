@@ -20,8 +20,10 @@ class TenantAdmin(admin.ModelAdmin):
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
     list_display = ['user', 'tenant', 'role', 'joined_at']
-    list_filter = ['role']
+    list_filter = ['role', 'tenant']
+    list_editable = ['role']
     search_fields = ['user__username', 'tenant__name']
+    autocomplete_fields = ['user', 'tenant']
 
 
 @admin.register(Habitacion)
@@ -36,8 +38,16 @@ class HabitacionAdmin(admin.ModelAdmin):
 
 @admin.register(Huesped)
 class HuespedAdmin(admin.ModelAdmin):
-    list_display = ['nombre', 'apellidos', 'tenant', 'email', 'telefono', 'documento_identidad']
-    search_fields = ['nombre', 'apellidos', 'email', 'documento_identidad']
+    list_display = [
+        'documento_identidad',
+        'nombre',
+        'apellidos',
+        'lugar_procedencia',
+        'tenant',
+        'email',
+        'telefono',
+    ]
+    search_fields = ['nombre', 'apellidos', 'email', 'documento_identidad', 'lugar_procedencia']
 
     def get_queryset(self, request):
         return Huesped.all_objects.all()
@@ -52,8 +62,10 @@ class ReservaAdmin(admin.ModelAdmin):
         'habitacion',
         'fecha_entrada',
         'fecha_salida',
+        'fecha_hora_salida_prevista',
         'estado',
         'precio_total',
+        'creado_por',
     ]
     list_filter = ['estado', 'fecha_entrada', 'fecha_salida', 'tenant']
     search_fields = ['huesped__nombre', 'huesped__apellidos', 'habitacion__numero']
@@ -65,8 +77,8 @@ class ReservaAdmin(admin.ModelAdmin):
 
 @admin.register(CheckIn)
 class CheckInAdmin(admin.ModelAdmin):
-    list_display = ['reserva', 'fecha_hora', 'empleado', 'documentos_recibidos']
-    list_filter = ['fecha_hora', 'documentos_recibidos']
+    list_display = ['reserva', 'fecha_hora', 'empleado', 'deposito', 'metodo_deposito', 'documentos_recibidos']
+    list_filter = ['fecha_hora', 'documentos_recibidos', 'metodo_deposito']
     search_fields = ['reserva__huesped__nombre', 'reserva__huesped__apellidos']
 
     def get_queryset(self, request):
@@ -75,7 +87,7 @@ class CheckInAdmin(admin.ModelAdmin):
 
 @admin.register(CheckOut)
 class CheckOutAdmin(admin.ModelAdmin):
-    list_display = ['reserva', 'fecha_hora', 'total_pagado', 'metodo_pago', 'calificacion']
+    list_display = ['reserva', 'fecha_hora', 'registrado_por', 'total_pagado', 'metodo_pago', 'calificacion']
     list_filter = ['metodo_pago', 'fecha_hora']
     search_fields = ['reserva__huesped__nombre', 'reserva__huesped__apellidos']
 

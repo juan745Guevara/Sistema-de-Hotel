@@ -17,16 +17,16 @@
             </div>
             <div class="card-body">
                 <form method="get" class="row g-3">
-                    <div class="col-md-5">
+                    <div class="col-12 col-md-5">
                         <label class="form-label">Fecha Desde</label>
                         <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-12 col-md-5">
                         <label class="form-label">Fecha Hasta</label>
                         <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
+                    <div class="col-12 col-md-2">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
                         <button type="submit" class="btn btn-primary d-block w-100">
                             <i class="bi bi-funnel"></i> Filtrar
                         </button>
@@ -50,6 +50,7 @@
                                 <th>Huésped</th>
                                 <th>Habitación</th>
                                 <th>Fecha y Hora</th>
+                                <th>Registrado por</th>
                                 <th>Total Pagado</th>
                                 <th>Método de Pago</th>
                                 <th>Calificación</th>
@@ -62,8 +63,9 @@
                                 <td>#{{ checkout.reserva.id }}</td>
                                 <td>{{ checkout.reserva.huesped.nombre_completo }}</td>
                                 <td>{{ checkout.reserva.habitacion.numero }}</td>
-                                <td>{{ checkout.fecha_hora }}</td>
-                                <td>${{ checkout.total_pagado|floatformat:2 }}</td>
+                                <td class="text-nowrap">{{ checkout.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                <td>{% if checkout.registrado_por %}{{ checkout.registrado_por.get_username }}{% else %}—{% endif %}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ checkout.total_pagado|floatformat:2 }}</td>
                                 <td>{{ checkout.get_metodo_pago_display }}</td>
                                 <td>
                                     {% if checkout.calificacion %}

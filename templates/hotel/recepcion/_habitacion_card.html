@@ -1,17 +1,49 @@
 <div class="card mb-2 habitacion-card">
-    <div class="card-body p-2">
-        <h6 class="mb-1">Hab. {{ habitacion.numero }}</h6>
-        <small class="text-muted d-block">{{ habitacion.get_tipo_display }}</small>
-        <small class="text-muted d-block">${{ habitacion.precio_noche|floatformat:2 }}/noche</small>
-        <small class="text-muted d-block">Cap: {{ habitacion.capacidad }} pers.</small>
-        {% if habitacion.reserva_activa > 0 %}
-        <span class="badge bg-info mt-1">{{ habitacion.reserva_activa }} reserva(s)</span>
-        {% endif %}
-        <div class="mt-2">
-            <a href="{% url 'detalle_habitacion' habitacion.id %}" class="btn btn-sm btn-outline-primary w-100">
-                <i class="bi bi-eye"></i> Ver
-            </a>
+    <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <span class="fs-5 fw-bold text-body">Hab. {{ habitacion.numero }}</span>
+            <span class="badge rounded-pill text-bg-light text-dark border">{{ habitacion.get_tipo_display }}</span>
         </div>
+        {% if habitacion.reservas_activas_prefetched %}
+        <div class="small mb-2 p-2 rounded bg-body-tertiary border border-secondary-subtle">
+            <div class="text-truncate fw-medium" title="{{ habitacion.reservas_activas_prefetched.0.huesped.nombre_completo }}">
+                <i class="bi bi-person text-muted"></i> {{ habitacion.reservas_activas_prefetched.0.huesped.nombre_completo }}
+            </div>
+            <div class="text-muted mt-1">
+                <i class="bi bi-calendar-range"></i>
+                {{ habitacion.reservas_activas_prefetched.0.fecha_entrada|date:"d/m" }} → {{ habitacion.reservas_activas_prefetched.0.fecha_salida|date:"d/m" }}
+            </div>
+            {% if habitacion.reservas_activas_prefetched|length > 1 %}
+            <span class="badge bg-secondary mt-1">+{{ habitacion.reservas_activas_prefetched|length|add:"-1" }} más</span>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2 small text-muted mb-2">
+            <span><i class="bi bi-cash"></i> {{ MONEDA_SIMBOLO }}{{ habitacion.precio_noche|floatformat:2 }}</span>
+            <span><i class="bi bi-people"></i> {{ habitacion.capacidad }}</span>
+        </div>
+        <div class="d-grid gap-2">
+            <a href="{% url 'detalle_habitacion' habitacion.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> Ver habitación
+            </a>
+            {% if habitacion.reservas_activas_prefetched %}
+                {% if request.membership.role == 'admin' or request.membership.role == 'recepcion' %}
+                <a href="{% url 'detalle_reserva' habitacion.reservas_activas_prefetched.0.id %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-journal-text"></i> Reserva #{{ habitacion.reservas_activas_prefetched.0.id }}
+                </a>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% if request.membership.role == 'limpieza' or request.membership.role == 'admin' %}
+            {% if habitacion.estado == 'limpieza' or habitacion.estado == 'mantenimiento' %}
+            <form method="post" action="{% url 'actualizar_estado_habitacion' habitacion.id %}" class="mt-2 mb-0">
+                {% csrf_token %}
+                <input type="hidden" name="estado" value="disponible">
+                <button type="submit" class="btn btn-sm btn-success w-100">
+                    <i class="bi bi-check2-circle"></i> Marcar disponible
+                </button>
+            </form>
+            {% endif %}
+        {% endif %}
     </div>
 </div>
-

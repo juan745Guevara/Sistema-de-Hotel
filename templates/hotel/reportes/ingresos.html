@@ -3,31 +3,38 @@
 {% block title %}Reporte de Ingresos - Sistema Hotelero{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
-        <h1><i class="bi bi-cash-stack"></i> Reporte de Ingresos</h1>
+        <h1 class="h2 mb-1"><i class="bi bi-cash-stack"></i> Reporte de ingresos</h1>
+        <p class="text-muted mb-0">Período: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong></p>
     </div>
+</div>
+
+<div class="alert alert-secondary py-2 small mb-4">
+    <strong>Qué significa cada total:</strong>
+    <em>Ingresos por reservas</em> suma el precio de reservas con entrada en el período (no canceladas).
+    <em>Pagos en check-out</em> son los cobros registrados al salir.
+    <em>Depósitos en check-in</em> son montos recibidos al ingresar (Yape, efectivo o transferencia).
 </div>
 
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Filtros</h5>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Filtros</h5>
             </div>
             <div class="card-body">
-                <form method="get" class="row g-3">
-                    <div class="col-md-5">
-                        <label class="form-label">Fecha Desde</label>
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label">Desde</label>
                         <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
                     </div>
-                    <div class="col-md-5">
-                        <label class="form-label">Fecha Hasta</label>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label">Hasta</label>
                         <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary d-block w-100">
+                    <div class="col-md-4 col-lg-3">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-search"></i> Generar
                         </button>
                     </div>
@@ -37,102 +44,145 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card text-white bg-primary">
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm text-white bg-primary">
             <div class="card-body">
-                <h5>Ingresos por Reservas</h5>
-                <h2>${{ ingresos_reservas|floatformat:2 }}</h2>
-                <p class="mb-0">Total de reservas en el período</p>
+                <h6 class="text-white-50 text-uppercase small">Reservas (precio)</h6>
+                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_reservas|floatformat:2 }}</h3>
+                <p class="small mb-0 mt-2 opacity-75">Suma de <code>precio_total</code> por fecha de entrada</p>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card text-white bg-success">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm text-white bg-success">
             <div class="card-body">
-                <h5>Ingresos por Check-outs</h5>
-                <h2>${{ ingresos_checkouts|floatformat:2 }}</h2>
-                <p class="mb-0">Pagos reales recibidos</p>
+                <h6 class="text-white-50 text-uppercase small">Check-outs (cobrado)</h6>
+                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_checkouts|floatformat:2 }}</h3>
+                <p class="small mb-0 mt-2 opacity-75">Suma de <code>total_pagado</code> por fecha de check-out</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm text-white bg-dark">
+            <div class="card-body">
+                <h6 class="text-white-50 text-uppercase small">Depósitos check-in</h6>
+                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ depositos_checkin|floatformat:2 }}</h3>
+                <p class="small mb-0 mt-2 opacity-75">Suma de depósitos registrados en el período</p>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row g-4 mb-4">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Ingresos por Método de Pago</h5>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Pagos en check-out por método</h5>
             </div>
             <div class="card-body">
                 {% if ingresos_por_metodo %}
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table table-sm mb-0">
                         <thead>
                             <tr>
                                 <th>Método</th>
-                                <th>Total</th>
+                                <th class="text-end">Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in ingresos_por_metodo %}
                             <tr>
-                                <td>{{ item.metodo_pago|title }}</td>
-                                <td>${{ item.total|floatformat:2 }}</td>
+                                <td>{{ item.metodo_display }}</td>
+                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted">No hay datos disponibles.</p>
+                <p class="text-muted mb-0">No hay check-outs en este período.</p>
                 {% endif %}
             </div>
         </div>
     </div>
-    
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Ingresos por Tipo de Habitación</h5>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Depósitos en check-in por método</h5>
+            </div>
+            <div class="card-body">
+                {% if depositos_por_metodo %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Método</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in depositos_por_metodo %}
+                            <tr>
+                                <td>{{ item.metodo_display }}</td>
+                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No hay depósitos con método registrado en este período.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Ingresos por tipo de habitación</h5>
+                <small class="text-muted">Según reservas con entrada en el período (no canceladas)</small>
             </div>
             <div class="card-body">
                 {% if ingresos_por_tipo %}
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                <th>Cantidad</th>
-                                <th>Total</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in ingresos_por_tipo %}
                             <tr>
-                                <td>{{ item.habitacion__tipo|title }}</td>
-                                <td>{{ item.cantidad }}</td>
-                                <td>${{ item.total|floatformat:2 }}</td>
+                                <td>{{ item.tipo_display }}</td>
+                                <td class="text-end">{{ item.cantidad }}</td>
+                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted">No hay datos disponibles.</p>
+                <p class="text-muted mb-0">No hay datos disponibles.</p>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
+{% include 'hotel/reportes/_movimientos_estadia.html' %}
+
 <div class="row mt-4">
     <div class="col-12">
-        <a href="{% url 'reportes' %}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Volver a Reportes
+        <a href="{% url 'reportes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a reportes
         </a>
     </div>
 </div>
 {% endblock %}
-
-

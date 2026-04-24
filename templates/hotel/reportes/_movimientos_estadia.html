@@ -1,0 +1,90 @@
+{# Requiere en contexto: checkins_detalle, checkouts_detalle #}
+<div class="row g-4 mb-4">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0"><i class="bi bi-box-arrow-in-right text-success"></i> Check-ins registrados</h5>
+                <small class="text-muted">Hora de entrada real al momento de registrar el check-in en el sistema.</small>
+            </div>
+            <div class="card-body p-0">
+                {% if checkins_detalle %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hora entrada</th>
+                                <th>Reserva</th>
+                                <th>Huésped</th>
+                                <th>Hab.</th>
+                                <th>Recepción</th>
+                                <th>Depósito</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in checkins_detalle %}
+                            <tr>
+                                <td class="text-nowrap">{{ c.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                <td><a href="{% url 'detalle_reserva' c.reserva.id %}">#{{ c.reserva.id }}</a></td>
+                                <td>{{ c.reserva.huesped.nombre_completo }}</td>
+                                <td>{{ c.reserva.habitacion.numero }}</td>
+                                <td>{{ c.empleado|default:"—" }}</td>
+                                <td class="small">
+                                    {% if c.deposito > 0 %}
+                                    {{ MONEDA_SIMBOLO }}{{ c.deposito|floatformat:2 }}
+                                    {% if c.metodo_deposito %}<br><span class="text-muted">{{ c.get_metodo_deposito_display }}</span>{% endif %}
+                                    {% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted p-3 mb-0">No hay check-ins en este período.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0"><i class="bi bi-box-arrow-right text-primary"></i> Check-outs registrados</h5>
+                <small class="text-muted">Hora de salida real al momento de registrar el check-out en el sistema.</small>
+            </div>
+            <div class="card-body p-0">
+                {% if checkouts_detalle %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hora salida</th>
+                                <th>Reserva</th>
+                                <th>Huésped</th>
+                                <th>Hab.</th>
+                                <th>Total</th>
+                                <th>Pago</th>
+                                <th>Cuenta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in checkouts_detalle %}
+                            <tr>
+                                <td class="text-nowrap">{{ c.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                <td><a href="{% url 'detalle_reserva' c.reserva.id %}">#{{ c.reserva.id }}</a></td>
+                                <td>{{ c.reserva.huesped.nombre_completo }}</td>
+                                <td>{{ c.reserva.habitacion.numero }}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ c.total_pagado|floatformat:2 }}</td>
+                                <td>{{ c.get_metodo_pago_display }}</td>
+                                <td class="small">{% if c.registrado_por %}{{ c.registrado_por.get_username }}{% else %}—{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted p-3 mb-0">No hay check-outs en este período.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

@@ -6,14 +6,14 @@
 <div class="row mb-4">
     <div class="col-12">
         <h1><i class="bi bi-box-arrow-right"></i> Check-out Rápido</h1>
-        <p class="text-muted">Check-outs pendientes para hoy ({{ hoy }})</p>
+        <p class="text-muted mb-0">Huéspedes con <strong>check-in activo</strong> ({{ hoy }}). Incluye <strong>salida anticipada</strong>: quienes pagaron la noche completa y se van antes de la fecha de salida contratada.</p>
     </div>
 </div>
 
 {% if hacer_checkout %}
 <!-- Formulario de Check-out -->
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-12 col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header bg-warning text-dark">
                 <h4>Check-out: Reserva #{{ reserva.id }}</h4>
@@ -23,27 +23,27 @@
                     <strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}<br>
                     <strong>Habitación:</strong> {{ reserva.habitacion.numero }}<br>
                     <strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}<br>
-                    <strong>Noches:</strong> {{ reserva.numero_noches }}<br>
-                    <strong>Precio Reserva:</strong> ${{ reserva.precio_total|floatformat:2 }}<br>
-                    {% if deposito > 0 %}
-                    <strong>Depósito:</strong> ${{ deposito|floatformat:2 }}<br>
+                    {% if reserva.fecha_hora_salida_prevista %}
+                    <strong>Salida prevista:</strong> {{ reserva.descripcion_salida_prevista }}<br>
                     {% endif %}
-                    <strong class="text-success">Total a Pagar:</strong> ${{ total_a_pagar|floatformat:2 }}
+                    <strong>Noches:</strong> {{ reserva.numero_noches }}{% if reserva.es_estadia_por_horas %} <span class="text-muted">(por horas)</span>{% endif %}<br>
+                    <strong>Precio Reserva:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}<br>
+                    {% if deposito > 0 %}
+                    <strong>Depósito:</strong> {{ MONEDA_SIMBOLO }}{{ deposito|floatformat:2 }}<br>
+                    {% endif %}
+                    <strong class="text-success">Total a Pagar:</strong> {{ MONEDA_SIMBOLO }}{{ total_a_pagar|floatformat:2 }}
                 </div>
                 
                 <form method="post">
                     {% csrf_token %}
+                    <p class="small text-muted mb-3">
+                        <i class="bi bi-person-badge"></i> El check-out quedará asociado a la cuenta <strong>{{ request.user.get_username }}</strong>.
+                    </p>
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Empleado</label>
-                            <input type="text" name="empleado" class="form-control" placeholder="Nombre del empleado">
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label">Total Pagado <span class="text-danger">*</span></label>
                             <input type="number" name="total_pagado" class="form-control" step="0.01" value="{{ total_a_pagar }}" required>
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Método de Pago <span class="text-danger">*</span></label>
                             <select name="metodo_pago" class="form-select" required>
@@ -53,6 +53,8 @@
                                 <option value="mixto">Mixto</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Calificación (1-5)</label>
                             <input type="number" name="calificacion" class="form-control" min="1" max="5">
@@ -87,7 +89,7 @@
                                 <th>Reserva</th>
                                 <th>Huésped</th>
                                 <th>Habitación</th>
-                                <th>Salida</th>
+                                <th>Salida programada</th>
                                 <th>Total</th>
                                 <th>Depósito</th>
                                 <th>A Pagar</th>
@@ -100,11 +102,14 @@
                                 <td>#{{ reserva.id }}</td>
                                 <td>{{ reserva.huesped.nombre_completo }}</td>
                                 <td>{{ reserva.habitacion.numero }}</td>
-                                <td>{{ reserva.fecha_salida }}</td>
-                                <td>${{ reserva.precio_total|floatformat:2 }}</td>
-                                <td>${{ reserva.checkin.deposito|floatformat:2|default:"0.00" }}</td>
                                 <td>
-                                    <strong>${{ reserva.precio_total|floatformat:2 }}</strong>
+                                    {% if reserva.fecha_hora_salida_prevista %}<span class="text-nowrap">{{ reserva.descripcion_salida_prevista }}</span>{% else %}{{ reserva.fecha_salida }}{% endif %}
+                                    {% if reserva.fecha_salida > hoy %}<span class="badge bg-secondary ms-1">Anticipada</span>{% endif %}
+                                </td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</td>
+                                <td>{{ MONEDA_SIMBOLO }}{{ reserva.checkin.deposito|floatformat:2|default:"0.00" }}</td>
+                                <td>
+                                    <strong>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</strong>
                                 </td>
                                 <td>
                                     <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-warning">
@@ -118,7 +123,7 @@
                 </div>
                 {% else %}
                 <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> No hay check-outs pendientes para hoy.
+                    <i class="bi bi-check-circle"></i> No hay huéspedes con check-in activo pendiente de check-out.
                 </div>
                 {% endif %}
             </div>

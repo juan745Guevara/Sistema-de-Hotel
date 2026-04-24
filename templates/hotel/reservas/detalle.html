@@ -5,13 +5,13 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-calendar-check"></i> Reserva #{{ reserva.id }}</h1>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 stack-sm">
+            <h1 class="h2 mb-0"><i class="bi bi-calendar-check"></i> Reserva #{{ reserva.id }}</h1>
             <div>
                 <a href="{% url 'editar_reserva' reserva.id %}" class="btn btn-warning">
                     <i class="bi bi-pencil"></i> Editar
                 </a>
-                {% if reserva.estado != 'cancelada' and reserva.estado != 'checkout' %}
+                {% if puede_cancelar %}
                 <a href="{% url 'cancelar_reserva' reserva.id %}" class="btn btn-danger">
                     <i class="bi bi-x-circle"></i> Cancelar
                 </a>
@@ -22,7 +22,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-12 col-md-6">
         <div class="card mb-4">
             <div class="card-header">
                 <h5>Información de la Reserva</h5>
@@ -34,12 +34,25 @@
                     </span>
                 </p>
                 <p><strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}</p>
+                <p><strong>DNI:</strong> {{ reserva.huesped.documento_identidad }}</p>
+                {% if reserva.huesped.lugar_procedencia %}
+                <p><strong>Lugar de procedencia:</strong> {{ reserva.huesped.lugar_procedencia }}</p>
+                {% endif %}
                 <p><strong>Habitación:</strong> <a href="{% url 'detalle_habitacion' reserva.habitacion.id %}">{{ reserva.habitacion.numero }} - {{ reserva.habitacion.get_tipo_display }}</a></p>
                 <p><strong>Fecha de Entrada:</strong> {{ reserva.fecha_entrada }}</p>
                 <p><strong>Fecha de Salida:</strong> {{ reserva.fecha_salida }}</p>
-                <p><strong>Número de Noches:</strong> {{ reserva.numero_noches }}</p>
+                {% if reserva.fecha_hora_salida_prevista %}
+                <p><strong>Salida prevista:</strong> {{ reserva.descripcion_salida_prevista }}</p>
+                {% if checkin %}
+                <p class="text-muted small mb-0">Duración prevista desde check-in: {{ reserva.horas_desde_checkin_hasta_salida_prevista }} h</p>
+                {% endif %}
+                {% endif %}
+                <p><strong>Número de Noches:</strong> {{ reserva.numero_noches }}{% if reserva.es_estadia_por_horas %} <span class="text-muted">(estadía por horas)</span>{% endif %}</p>
                 <p><strong>Número de Huéspedes:</strong> {{ reserva.numero_huespedes }}</p>
-                <p><strong>Precio Total:</strong> ${{ reserva.precio_total|floatformat:2 }}</p>
+                <p><strong>Precio Total:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
+                {% if reserva.creado_por %}
+                <p><strong>Reserva registrada por:</strong> {{ reserva.creado_por.get_full_name|default:reserva.creado_por.username }}</p>
+                {% endif %}
                 {% if reserva.notas %}
                 <p><strong>Notas:</strong> {{ reserva.notas }}</p>
                 {% endif %}
@@ -47,8 +60,8 @@
         </div>
     </div>
     
-    <div class="col-md-6">
-        {% if not checkin and reserva.estado != 'cancelada' and reserva.estado != 'checkout' %}
+    <div class="col-12 col-md-6">
+        {% if puede_checkin %}
         <div class="card mb-4">
             <div class="card-header bg-info text-white">
                 <h5><i class="bi bi-box-arrow-in-right"></i> Check-in</h5>
@@ -66,25 +79,42 @@
                 <h5><i class="bi bi-check-circle"></i> Check-in Realizado</h5>
             </div>
             <div class="card-body">
-                <p><strong>Fecha y Hora:</strong> {{ checkin.fecha_hora }}</p>
-                <p><strong>Empleado:</strong> {{ checkin.empleado|default:"N/A" }}</p>
+                <p><strong>Hora de entrada registrada:</strong> {{ checkin.fecha_hora|date:"d/m/Y H:i" }}</p>
+                <p><strong>Registró (cuenta):</strong> {{ checkin.empleado|default:"N/A" }}</p>
                 <p><strong>Documentos Recibidos:</strong> {% if checkin.documentos_recibidos %}Sí{% else %}No{% endif %}</p>
                 {% if checkin.deposito > 0 %}
-                <p><strong>Depósito:</strong> ${{ checkin.deposito|floatformat:2 }}</p>
+                <p><strong>Depósito:</strong> {{ MONEDA_SIMBOLO }}{{ checkin.deposito|floatformat:2 }}</p>
+                {% if checkin.metodo_deposito %}
+                <p><strong>Método del depósito:</strong> {{ checkin.get_metodo_deposito_display }}</p>
+                {% endif %}
                 {% endif %}
                 {% if checkin.notas %}
                 <p><strong>Notas:</strong> {{ checkin.notas }}</p>
                 {% endif %}
             </div>
         </div>
+        {% elif not checkin and reserva.estado != 'cancelada' and reserva.estado != 'checkout' %}
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5><i class="bi bi-box-arrow-in-right"></i> Check-in</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">El check-in no está disponible aún (fecha de entrada futura, estado de la reserva o la reserva ya finalizó).</p>
+            </div>
+        </div>
         {% endif %}
         
-        {% if checkin and not checkout and reserva.estado != 'cancelada' %}
+        {% if puede_checkout %}
         <div class="card mb-4">
             <div class="card-header bg-warning text-white">
                 <h5><i class="bi bi-box-arrow-right"></i> Check-out</h5>
             </div>
             <div class="card-body">
+                {% if reserva.fecha_salida > hoy %}
+                <div class="alert alert-secondary py-2 small mb-3">
+                    La fecha de salida contratada es <strong>{{ reserva.fecha_salida }}</strong>. Puede registrar igualmente el check-out si el huésped se va antes (salida anticipada; el total cobrado lo define en el formulario, p. ej. noche completa ya acordada).
+                </div>
+                {% endif %}
                 <p>Esta reserva está lista para check-out.</p>
                 <a href="{% url 'realizar_checkout' reserva.id %}" class="btn btn-warning">
                     <i class="bi bi-box-arrow-right"></i> Realizar Check-out
@@ -97,9 +127,11 @@
                 <h5><i class="bi bi-check-circle-fill"></i> Check-out Realizado</h5>
             </div>
             <div class="card-body">
-                <p><strong>Fecha y Hora:</strong> {{ checkout.fecha_hora }}</p>
-                <p><strong>Empleado:</strong> {{ checkout.empleado|default:"N/A" }}</p>
-                <p><strong>Total Pagado:</strong> ${{ checkout.total_pagado|floatformat:2 }}</p>
+                <p><strong>Hora de salida registrada:</strong> {{ checkout.fecha_hora|date:"d/m/Y H:i" }}</p>
+                {% if checkout.registrado_por %}
+                <p><strong>Registrado por:</strong> {{ checkout.registrado_por.get_username }}</p>
+                {% endif %}
+                <p><strong>Total Pagado:</strong> {{ MONEDA_SIMBOLO }}{{ checkout.total_pagado|floatformat:2 }}</p>
                 <p><strong>Método de Pago:</strong> {{ checkout.get_metodo_pago_display }}</p>
                 {% if checkout.calificacion %}
                 <p><strong>Calificación:</strong> {{ checkout.calificacion }}/5</p>

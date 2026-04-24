@@ -22,7 +22,7 @@
                 <p><strong>Habitación:</strong> {{ reserva.habitacion.numero }}</p>
                 <p><strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}</p>
                 <p><strong>Noches:</strong> {{ reserva.numero_noches }}</p>
-                <p><strong>Total:</strong> ${{ reserva.precio_total|floatformat:2 }}</p>
+                <p><strong>Total:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
             </div>
         </div>
     </div>
@@ -32,6 +32,10 @@
                 <h5>Datos del Check-in</h5>
             </div>
             <div class="card-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-clock-history"></i> La <strong>fecha y hora de entrada</strong> se guardan automáticamente al confirmar.
+                    <span class="d-block mt-1"><i class="bi bi-person-badge"></i> El check-in queda registrado con la cuenta en sesión: <strong>{{ request.user.username }}</strong>{% if request.user.get_full_name %} ({{ request.user.get_full_name }}){% endif %}.</span>
+                </div>
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}

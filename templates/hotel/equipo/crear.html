@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva cuenta de personal — Sistema Hotelero{% endblock %}
+{% block page_title %}Nueva cuenta{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+        <div class="mb-3">
+            <a href="{% url 'lista_equipo' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver al equipo</a>
+        </div>
+        <div class="card">
+            <div class="card-header fw-semibold">
+                <i class="bi bi-person-plus me-1"></i>Alta de recepción o limpieza
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Se creará un usuario con el <strong>nombre de usuario</strong> indicado. Podrá entrar con el <strong>enlace de ingreso</strong> del listado de equipo, eligiendo el mismo <strong>rol</strong>, ese usuario y la contraseña.</p>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                        {{ form.username.errors }}
+                        {{ form.username }}
+                        {% if form.username.help_text %}<div class="form-text">{{ form.username.help_text }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
+                        {{ form.role.errors }}
+                        {{ form.role }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+                        {{ form.password1.errors }}
+                        {{ form.password1 }}
+                        {% if form.password1.help_text %}<div class="form-text">{{ form.password1.help_text }}</div>{% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+                        {{ form.password2.errors }}
+                        {{ form.password2 }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Crear cuenta</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
