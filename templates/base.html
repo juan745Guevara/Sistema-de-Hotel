@@ -389,10 +389,6 @@
             
             <div class="menu-section">
                 <div class="menu-section-title">Recepción</div>
-                <a href="{% url 'registro_rapido' %}" class="menu-item">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span>Registro Rápido</span>
-                </a>
                 <a href="{% url 'checkin_rapido' %}" class="menu-item">
                     <i class="bi bi-box-arrow-in-right"></i>
                     <span>Check-in</span>
@@ -417,10 +413,6 @@
                     <i class="bi bi-door-open"></i>
                     <span>Habitaciones</span>
                 </a>
-                <a href="{% url 'lista_huespedes' %}" class="menu-item">
-                    <i class="bi bi-people"></i>
-                    <span>Huéspedes</span>
-                </a>
             </div>
             
             <div class="menu-section">
@@ -442,13 +434,26 @@
                     <span>Reportes</span>
                 </a>
             </div>
-            <div class="menu-section"></div>
+            <div class="menu-section">
                 <div class="menu-section-title">Configuración</div>
+                {% if request.tenant %}
+                <div class="px-3 py-2 small text-white-50">
+                    <i class="bi bi-building me-1"></i>{{ request.tenant.name }}
+                </div>
+                <a href="{% url 'select_tenant' %}" class="menu-item">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Cambiar hotel</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'accounts_logout' %}" class="menu-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Cerrar sesión</span>
+                </a>
                 <a href="#" class="menu-item" id="themeToggle">
                     <i class="bi bi-moon" id="themeIcon"></i>
                     <span id="themeText">Modo oscuro</span>
-                    
                 </a>
+            </div>
         </nav>
     </aside>
     
@@ -469,7 +474,10 @@
                 <div id="resultados-busqueda" class="position-absolute top-100 end-0 mt-2" style="display: none; max-width: 500px; z-index: 1000; max-height: 400px; overflow-y: auto;"></div>
             </div>
             
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-3">
+                {% if request.tenant %}
+                <span class="text-muted small d-none d-md-inline">{{ request.tenant.name }}</span>
+                {% endif %}
                 <span class="text-muted small">{{ "now"|date:"d/m/Y" }}</span>
             </div>
         </div>
@@ -554,13 +562,6 @@
                         .then(response => response.json())
                         .then(data => {
                             let html = '';
-                            
-                            if (data.huespedes.length > 0) {
-                                html += '<div class="p-2 border-bottom bg-light"><strong>Huéspedes</strong></div>';
-                                data.huespedes.forEach(h => {
-                                    html += `<a href="${h.url}" class="d-block p-2 text-decoration-none">${h.nombre} - ${h.documento}</a>`;
-                                });
-                            }
                             
                             if (data.reservas.length > 0) {
                                 html += '<div class="p-2 border-bottom bg-light"><strong>Reservas</strong></div>';

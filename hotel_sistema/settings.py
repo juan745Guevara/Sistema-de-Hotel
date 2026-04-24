@@ -3,7 +3,6 @@ Django settings for hotel_sistema project.
 """
 
 from pathlib import Path
-import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,6 +41,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'hotel.middleware.TenantAuthMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -119,15 +119,13 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
-
-# Configuración API RENIEC
-# Proveedor: 'APISPERU' o 'JSON_PE'
-RENIEC_PROVIDER = os.environ.get('RENIEC_PROVIDER', 'APISPERU')
-# API Key (opcional, algunos proveedores no la requieren)
-RENIEC_API_KEY = os.environ.get('RENIEC_API_KEY', '')
 
 # Cache configuration
 CACHES = {

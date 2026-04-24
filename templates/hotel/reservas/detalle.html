@@ -33,7 +33,7 @@
                         {{ reserva.get_estado_display }}
                     </span>
                 </p>
-                <p><strong>Huésped:</strong> <a href="{% url 'detalle_huesped' reserva.huesped.id %}">{{ reserva.huesped.nombre_completo }}</a></p>
+                <p><strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}</p>
                 <p><strong>Habitación:</strong> <a href="{% url 'detalle_habitacion' reserva.habitacion.id %}">{{ reserva.habitacion.numero }} - {{ reserva.habitacion.get_tipo_display }}</a></p>
                 <p><strong>Fecha de Entrada:</strong> {{ reserva.fecha_entrada }}</p>
                 <p><strong>Fecha de Salida:</strong> {{ reserva.fecha_salida }}</p>
