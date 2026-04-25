@@ -33,7 +33,7 @@
                         <td>{{ habitacion.capacidad }} personas</td>
                         <td>{{ MONEDA_SIMBOLO }}{{ habitacion.precio_noche|floatformat:2 }}</td>
                         <td>
-                            <form method="post" action="{% url 'marcar_limpieza_terminada' habitacion.id %}?next={% url 'lista_limpieza' %}" class="d-inline">
+                            <form method="post" action="{% url 'marcar_limpieza_terminada' habitacion.id %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-success btn-sm">
                                     <i class="bi bi-check-circle"></i> Limpieza terminada

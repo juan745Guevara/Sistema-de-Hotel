@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Registro - Reportes{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <h1 class="h2 mb-1"><i class="bi bi-journal-text"></i> Registro</h1>
+        <p class="text-muted mb-0">
+            Listado por <strong>fecha y hora de check-in</strong> (orden cronológico), con documento de identidad,
+            nombre, nacionalidad, procedencia, habitación y <strong>salida</strong> si ya consta el check-out en el sistema.
+        </p>
+        <p class="small text-muted mb-0">Hotel: <strong>{{ hotel_nombre }}</strong>. Zona horaria: <strong>{{ time_zone_label }}</strong>.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Filtros</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Desde (fecha)</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Hasta (fecha)</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label class="form-label">Desde (hora)</label>
+                        <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60">
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label class="form-label">Hasta (hora)</label>
+                        <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60">
+                    </div>
+                    <div class="col-12 col-lg-2 d-flex flex-column gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> Generar
+                        </button>
+                        {% if querystring %}
+                        <a class="btn btn-outline-danger w-100" href="{% url 'reporte_registro_pdf' %}?{{ querystring }}">
+                            <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                        </a>
+                        {% else %}
+                        <a class="btn btn-outline-danger w-100" href="{% url 'reporte_registro_pdf' %}?fecha_desde={{ fecha_desde }}&amp;fecha_hasta={{ fecha_hasta }}&amp;hora_desde={{ hora_desde }}&amp;hora_hasta={{ hora_hasta }}">
+                            <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+                <p class="small text-muted mb-0 mt-2">
+                    Por defecto <strong>00:00</strong>–<strong>23:59</strong> del rango de fechas incluye todos los check-ins registrados en esos días.
+                    Ajuste horas para un turno concreto.
+                    {% if turno_cruza_medianoche %}
+                    <span class="d-block mt-1"><strong>Turno nocturno:</strong> misma fecha con hora hasta &lt; hora desde → el fin es al día siguiente.</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info py-2 small mb-0">
+            <strong>{{ total_registros }}</strong> registro(s) en el período
+            (<strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>).
+            Use <strong>Descargar PDF</strong> para exportar o imprimir.
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center" style="width:3rem">N°</th>
+                                <th>Fecha y hora ingreso</th>
+                                <th>Fecha y hora salida</th>
+                                <th>Documento</th>
+                                <th>Apellidos y nombres</th>
+                                <th>Nacionalidad</th>
+                                <th>Procedencia</th>
+                                <th class="text-center">Hab.</th>
+                                <th class="text-center">Pers.</th>
+                                <th class="text-center">Reserva</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in filas %}
+                            <tr>
+                                <td class="text-center">{{ f.orden }}</td>
+                                <td class="text-nowrap">{{ f.entrada }}</td>
+                                <td class="text-nowrap">{{ f.salida }}</td>
+                                <td>{{ f.documento }}</td>
+                                <td>{{ f.nombre_completo }}</td>
+                                <td>{{ f.nacionalidad }}</td>
+                                <td>{{ f.procedencia }}</td>
+                                <td class="text-center">{{ f.habitacion }}</td>
+                                <td class="text-center">{{ f.num_huespedes }}</td>
+                                <td class="text-center"><a href="{% url 'detalle_reserva' f.reserva_id %}">#{{ f.reserva_id }}</a></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">No hay check-ins en este período.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'reportes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a reportes
+        </a>
+    </div>
+</div>
+{% endblock %}

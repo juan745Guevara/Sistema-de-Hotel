@@ -22,10 +22,12 @@
                 <p><strong>Habitación:</strong> {{ reserva.habitacion.numero }}</p>
                 <p><strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}</p>
                 <p><strong>Noches:</strong> {{ reserva.numero_noches }}</p>
-                <p><strong>Total a Pagar:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
+                <p><strong>Precio total reserva:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
                 {% if reserva.checkin %}
-                <p><strong>Depósito:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.checkin.deposito|floatformat:2 }}</p>
+                <p><strong>Depósito en check-in:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.checkin.deposito|floatformat:2 }}</p>
                 {% endif %}
+                <p class="text-success mb-0"><strong>Saldo sugerido al salir:</strong> {{ MONEDA_SIMBOLO }}{{ saldo_sugerido_checkout|floatformat:2 }}</p>
+                <p class="small text-muted mb-0">El formulario propone este saldo (total − depósito); ajústelo si hubo cargos extra o acuerdos.</p>
             </div>
         </div>
     </div>
@@ -53,6 +55,21 @@
                         </button>
                     </div>
                 </form>
+                <script>
+                (function () {
+                    var sel = document.getElementById('id_metodo_pago_checkout');
+                    function sync() {
+                        if (!sel) return;
+                        var show = sel.value === 'mixto';
+                        document.querySelectorAll('.mixto-monto-input').forEach(function (inp) {
+                            var grp = inp.closest('.mb-3');
+                            if (grp) grp.style.display = show ? '' : 'none';
+                        });
+                    }
+                    if (sel) sel.addEventListener('change', sync);
+                    sync();
+                })();
+                </script>
             </div>
         </div>
     </div>

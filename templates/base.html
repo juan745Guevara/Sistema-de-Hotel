@@ -111,6 +111,17 @@
             opacity: 1;
         }
 
+        /*
+         * Evita pantalla oscura atrapada: si el backdrop quedó .is-visible sin el menú .show
+         * (p. ej. navegación atrás con bfcache, cambio de ventana), no debe tapar el contenido.
+         */
+        .sidebar-backdrop.is-visible:not(:has(+ .sidebar.show)) {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden;
+        }
+
         .sidebar {
             position: fixed;
             left: 0;
@@ -586,6 +597,31 @@
             border: none;
             padding: 1rem 1.25rem;
         }
+
+        .app-alert {
+            border-left: 5px solid transparent;
+            font-weight: 600;
+            box-shadow: 0 8px 18px var(--shadow-soft);
+        }
+
+        .app-alert .alert-icon {
+            font-size: 1.1rem;
+            margin-right: 0.5rem;
+            vertical-align: -1px;
+        }
+
+        .app-alert.alert-danger {
+            border-left-color: #dc3545;
+        }
+        .app-alert.alert-warning {
+            border-left-color: #ffc107;
+        }
+        .app-alert.alert-success {
+            border-left-color: #198754;
+        }
+        .app-alert.alert-info {
+            border-left-color: #0dcaf0;
+        }
         
         /* Tablet y móvil: menú lateral tipo drawer */
         @media (max-width: 991.98px) {
@@ -846,6 +882,12 @@
                     <i class="bi bi-door-open"></i>
                     <span>Habitaciones</span>
                 </a>
+                {% if request.membership.role == 'limpieza' or request.membership.role == 'recepcion' or request.membership.role == 'admin' %}
+                <a href="{% url 'lista_limpieza' %}" class="menu-item">
+                    <i class="bi bi-droplet-half"></i>
+                    <span>Cola de limpieza</span>
+                </a>
+                {% endif %}
             </div>
             
             <div class="menu-section">
@@ -937,7 +979,18 @@
         <div class="content-wrapper">
             {% if messages %}
                 {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    <div class="alert app-alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <span class="alert-icon">
+                            {% if 'error' in message.tags or 'danger' in message.tags %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            {% elif 'warning' in message.tags %}
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                            {% elif 'success' in message.tags %}
+                            <i class="bi bi-check-circle-fill"></i>
+                            {% else %}
+                            <i class="bi bi-info-circle-fill"></i>
+                            {% endif %}
+                        </span>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -994,13 +1047,17 @@
             function closeSidebar() {
                 sidebar?.classList.remove('show');
                 backdrop?.classList.remove('is-visible');
-                if (backdrop) backdrop.setAttribute('aria-hidden', 'true');
+                if (backdrop) {
+                    backdrop.setAttribute('aria-hidden', 'true');
+                    backdrop.style.removeProperty('visibility');
+                }
                 document.body.classList.remove('sidebar-open');
             }
 
             function openSidebar() {
                 sidebar?.classList.add('show');
                 if (isDrawerMode()) {
+                    if (backdrop) backdrop.style.removeProperty('visibility');
                     backdrop?.classList.add('is-visible');
                     if (backdrop) backdrop.setAttribute('aria-hidden', 'false');
                     document.body.classList.add('sidebar-open');
@@ -1041,10 +1098,21 @@
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && sidebar?.classList.contains('show')) closeSidebar();
             });
+
+            /* Estado limpio al cargar (evita clases residuales) y al volver con atrás (bfcache). */
+            closeSidebar();
+            window.addEventListener('pageshow', function (ev) {
+                if (ev.persisted) closeSidebar();
+            });
         })();
         
         // Búsqueda rápida global
         document.addEventListener('DOMContentLoaded', function() {
+            const firstCriticalAlert = document.querySelector('.app-alert.alert-danger, .app-alert.alert-warning');
+            if (firstCriticalAlert) {
+                firstCriticalAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
             const busquedaInput = document.getElementById('busqueda-rapida');
             const resultadosDiv = document.getElementById('resultados-busqueda');
             if (!busquedaInput || !resultadosDiv) return;

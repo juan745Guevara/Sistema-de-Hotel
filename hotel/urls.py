@@ -21,6 +21,12 @@ urlpatterns = [
     path('recepcion/walkin/', views.walkin, name='walkin'),
     path('recepcion/tablero/', views.tablero_habitaciones, name='tablero_habitaciones'),
     path('recepcion/calendario/', views.calendario_ocupacion, name='calendario_ocupacion'),
+    path('recepcion/limpieza/', views.lista_limpieza, name='lista_limpieza'),
+    path(
+        'recepcion/limpieza/<int:habitacion_id>/terminada/',
+        views.marcar_limpieza_terminada,
+        name='marcar_limpieza_terminada',
+    ),
     path('api/busqueda/', views.busqueda_rapida, name='busqueda_rapida'),
     
     # Reservas
@@ -64,6 +70,8 @@ urlpatterns = [
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/ocupacion/', views.reporte_ocupacion, name='reporte_ocupacion'),
     path('reportes/ingresos/', views.reporte_ingresos, name='reporte_ingresos'),
+    path('reportes/registro/', views.reporte_registro, name='reporte_registro'),
+    path('reportes/registro/pdf/', views.reporte_registro_pdf, name='reporte_registro_pdf'),
 ]
 
 

@@ -16,6 +16,12 @@
                 </div>
                 <form method="post">
                     {% csrf_token %}
+                    {% if form.errors %}
+                    <div class="alert alert-danger mb-3">
+                        <strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Revisa los datos:</strong>
+                        corrige los campos marcados en rojo para continuar.
+                    </div>
+                    {% endif %}
                     {{ form|crispy }}
                     <div class="d-flex justify-content-between mt-4">
                         <a href="{% url 'lista_reservas' %}" class="btn btn-secondary">
@@ -31,5 +37,4 @@
     </div>
 </div>
 {% endblock %}
-
 

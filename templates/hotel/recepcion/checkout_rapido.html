@@ -42,35 +42,63 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Total Pagado <span class="text-danger">*</span></label>
-                            <input type="number" name="total_pagado" class="form-control" step="0.01" value="{{ total_a_pagar }}" required>
+                            <input type="number" name="total_pagado" class="form-control" step="0.01" value="{% if posted.total_pagado %}{{ posted.total_pagado }}{% else %}{{ total_a_pagar }}{% endif %}" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Método de Pago <span class="text-danger">*</span></label>
-                            <select name="metodo_pago" class="form-select" required>
-                                <option value="efectivo">Efectivo</option>
-                                <option value="tarjeta">Tarjeta</option>
-                                <option value="transferencia">Transferencia</option>
-                                <option value="mixto">Mixto</option>
+                            <select name="metodo_pago" id="metodo_pago_checkout_rapido" class="form-select" required>
+                                <option value="efectivo" {% if not posted.metodo_pago or posted.metodo_pago == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                                <option value="tarjeta" {% if posted.metodo_pago == 'tarjeta' %}selected{% endif %}>Tarjeta</option>
+                                <option value="yape" {% if posted.metodo_pago == 'yape' %}selected{% endif %}>Yape</option>
+                                <option value="transferencia" {% if posted.metodo_pago == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                                <option value="mixto" {% if posted.metodo_pago == 'mixto' %}selected{% endif %}>Mixto</option>
                             </select>
                         </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Calificación (1-5)</label>
-                            <input type="number" name="calificacion" class="form-control" min="1" max="5">
+                    <div id="desglose-mixto-checkout" class="border rounded p-3 mb-3 bg-light" style="{% if posted and posted.metodo_pago == 'mixto' %}{% else %}display:none{% endif %}">
+                        <p class="small text-muted mb-2 mb-md-3">
+                            <strong>Pago mixto:</strong> reparta el total entre los medios usados (la suma debe coincidir con el total pagado y al menos dos medios con monto mayor a cero).
+                        </p>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Efectivo</label>
+                                <input type="number" name="mixto_efectivo" class="form-control form-control-sm" step="0.01" min="0" value="{{ posted.mixto_efectivo|default:'0' }}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Tarjeta</label>
+                                <input type="number" name="mixto_tarjeta" class="form-control form-control-sm" step="0.01" min="0" value="{{ posted.mixto_tarjeta|default:'0' }}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Yape</label>
+                                <input type="number" name="mixto_yape" class="form-control form-control-sm" step="0.01" min="0" value="{{ posted.mixto_yape|default:'0' }}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Transferencia</label>
+                                <input type="number" name="mixto_transferencia" class="form-control form-control-sm" step="0.01" min="0" value="{{ posted.mixto_transferencia|default:'0' }}">
+                            </div>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Daños Observados</label>
-                        <textarea name="danos_observados" class="form-control" rows="2"></textarea>
+                        <textarea name="danos_observados" class="form-control" rows="2">{{ posted.danos_observados|default:'' }}</textarea>
                     </div>
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'checkout_rapido' %}" class="btn btn-secondary">Cancelar</a>
-                        <button type="submit" class="btn btn-warning btn-lg">
+                        <button type="submit" class="btn btn-primary btn-lg">
                             <i class="bi bi-check-circle"></i> Confirmar Check-out
                         </button>
                     </div>
                 </form>
+                <script>
+                (function () {
+                    var sel = document.getElementById('metodo_pago_checkout_rapido');
+                    var box = document.getElementById('desglose-mixto-checkout');
+                    if (!sel || !box) return;
+                    function sync() { box.style.display = sel.value === 'mixto' ? '' : 'none'; }
+                    sel.addEventListener('change', sync);
+                    sync();
+                })();
+                </script>
             </div>
         </div>
     </div>
@@ -109,10 +137,10 @@
                                 <td>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</td>
                                 <td>{{ MONEDA_SIMBOLO }}{{ reserva.checkin.deposito|floatformat:2|default:"0.00" }}</td>
                                 <td>
-                                    <strong>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</strong>
+                                    <strong>{{ MONEDA_SIMBOLO }}{{ reserva.saldo_checkout|floatformat:2 }}</strong>
                                 </td>
                                 <td>
-                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-warning">
+                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-check-circle"></i> Check-out
                                     </a>
                                 </td>

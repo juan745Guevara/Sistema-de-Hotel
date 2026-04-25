@@ -41,6 +41,7 @@
                             <li><a class="dropdown-item" href="{% url 'lista_habitaciones' %}">Lista de Habitaciones</a></li>
                             <li><a class="dropdown-item" href="{% url 'crear_habitacion' %}">Nueva Habitación</a></li>
                             <li><a class="dropdown-item" href="{% url 'disponibilidad_habitaciones' %}">Disponibilidad</a></li>
+                            <li><a class="dropdown-item" href="{% url 'lista_limpieza' %}">Cola de limpieza</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -52,11 +53,6 @@
                             <li><a class="dropdown-item" href="{% url 'lista_checkouts' %}">Check-outs</a></li>
                         </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'lista_huespedes' %}">
-                            <i class="bi bi-people"></i> Huéspedes
-                        </a>
-                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-graph-up"></i> Reportes
@@ -65,7 +61,7 @@
                             <li><a class="dropdown-item" href="{% url 'reportes' %}">Reportes</a></li>
                             <li><a class="dropdown-item" href="{% url 'reporte_ocupacion' %}">Ocupación</a></li>
                             <li><a class="dropdown-item" href="{% url 'reporte_ingresos' %}">Ingresos</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reporte_huespedes' %}">Huéspedes</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reporte_registro' %}">Registro</a></li>
                         </ul>
                     </li>
                 </ul>

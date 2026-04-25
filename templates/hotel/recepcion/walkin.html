@@ -31,22 +31,23 @@
                         <div class="col-md-6">
                             <label class="form-label">DNI <span class="text-danger">*</span></label>
                             <input type="text" name="documento_identidad" id="documento_identidad" class="form-control"
-                                   maxlength="50" required autofocus placeholder="Ej. 12345678">
+                                   maxlength="50" required autofocus placeholder="Ej. 12345678" autocomplete="off" inputmode="numeric">
+                            <small class="text-muted d-block mt-1">Si el DNI es nuevo, se crea el huésped al guardar; si ya existía, se actualizan nombre y procedencia.</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nombres <span class="text-danger">*</span></label>
-                            <input type="text" name="nombre" id="nombre" class="form-control" required placeholder="Nombres">
+                            <input type="text" name="nombre" id="nombre" class="form-control" required placeholder="Nombres" autocomplete="given-name">
                         </div>
                     </div>
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Apellidos <span class="text-danger">*</span></label>
-                            <input type="text" name="apellidos" id="apellidos" class="form-control" required placeholder="Apellidos">
+                            <input type="text" name="apellidos" id="apellidos" class="form-control" required placeholder="Apellidos" autocomplete="family-name">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Lugar de procedencia <span class="text-danger">*</span></label>
-                            <input type="text" name="lugar_procedencia" id="lugar_procedencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de origen">
+                            <input type="text" name="lugar_procedencia" id="lugar_procedencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de origen" autocomplete="address-level2">
                         </div>
                     </div>
                     
@@ -111,8 +112,32 @@
                                 <option value="efectivo">Efectivo</option>
                                 <option value="yape">Yape</option>
                                 <option value="transferencia">Transferencia</option>
+                                <option value="mixto">Mixto</option>
                             </select>
                             <small class="text-muted">Si hay depósito, indique cómo se recibió.</small>
+                        </div>
+                    </div>
+                    <div id="walkin-desglose-mixto-deposito" class="border rounded p-3 mb-3 bg-light" style="display:none">
+                        <p class="small text-muted mb-2 mb-md-3">
+                            <strong>Depósito mixto:</strong> la suma debe coincidir con el depósito; use al menos dos medios con monto mayor a cero.
+                        </p>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Efectivo</label>
+                                <input type="number" name="mixto_efectivo" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Tarjeta</label>
+                                <input type="number" name="mixto_tarjeta" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Yape</label>
+                                <input type="number" name="mixto_yape" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Transferencia</label>
+                                <input type="number" name="mixto_transferencia" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                            </div>
                         </div>
                     </div>
                     <div class="form-check mb-3">
@@ -126,7 +151,7 @@
                         <a href="{% url 'index' %}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
-                        <button type="submit" class="btn btn-secondary btn-lg">
+                        <button type="submit" class="btn btn-primary btn-lg">
                             <i class="bi bi-check-circle"></i> Registrar walk-in
                         </button>
                     </div>
@@ -156,6 +181,27 @@
     if (rN) rN.addEventListener('change', sync);
     if (rH) rH.addEventListener('change', sync);
     sync();
+})();
+
+(function () {
+    const deposito = document.getElementById('walkin-deposito');
+    const metodo = document.getElementById('walkin-metodo-deposito');
+    const boxMixto = document.getElementById('walkin-desglose-mixto-deposito');
+    if (!deposito || !metodo) return;
+
+    function syncMetodo() {
+        const dep = parseFloat(deposito.value || '0');
+        const requiere = !isNaN(dep) && dep > 0;
+        metodo.required = requiere;
+        if (!requiere) metodo.value = '';
+        if (boxMixto) {
+            boxMixto.style.display = requiere && metodo.value === 'mixto' ? '' : 'none';
+        }
+    }
+
+    deposito.addEventListener('input', syncMetodo);
+    metodo.addEventListener('change', syncMetodo);
+    syncMetodo();
 })();
 </script>
 {% endblock %}

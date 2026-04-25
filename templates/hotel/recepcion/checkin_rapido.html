@@ -34,30 +34,54 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Depósito (soles)</label>
-                            <input type="number" name="deposito" class="form-control" step="0.01" min="0" value="0">
+                            <input type="number" name="deposito" id="checkin-deposito" class="form-control" step="0.01" min="0" value="{% if posted %}{{ posted.deposito }}{% else %}0{% endif %}">
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Método del depósito</label>
-                            <select name="metodo_deposito" class="form-select">
+                            <select name="metodo_deposito" id="checkin-metodo-deposito" class="form-select">
                                 <option value="">Sin depósito (monto 0)</option>
-                                <option value="efectivo">Efectivo</option>
-                                <option value="yape">Yape</option>
-                                <option value="transferencia">Transferencia</option>
+                                <option value="efectivo" {% if posted and posted.metodo_deposito == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                                <option value="yape" {% if posted and posted.metodo_deposito == 'yape' %}selected{% endif %}>Yape</option>
+                                <option value="transferencia" {% if posted and posted.metodo_deposito == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                                <option value="mixto" {% if posted and posted.metodo_deposito == 'mixto' %}selected{% endif %}>Mixto</option>
                             </select>
                             <small class="text-muted">Obligatorio si el depósito es mayor a 0.</small>
                         </div>
                     </div>
+                    <div id="desglose-mixto-deposito" class="border rounded p-3 mb-3 bg-light" style="display:none">
+                        <p class="small text-muted mb-2 mb-md-3">
+                            <strong>Depósito mixto:</strong> reparta el monto entre los medios (suma = depósito; al menos dos medios con monto &gt; 0).
+                        </p>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Efectivo</label>
+                                <input type="number" name="mixto_efectivo" class="form-control form-control-sm" step="0.01" min="0" value="{% if posted %}{{ posted.mixto_efectivo|default:'0' }}{% else %}0{% endif %}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Tarjeta</label>
+                                <input type="number" name="mixto_tarjeta" class="form-control form-control-sm" step="0.01" min="0" value="{% if posted %}{{ posted.mixto_tarjeta|default:'0' }}{% else %}0{% endif %}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Yape</label>
+                                <input type="number" name="mixto_yape" class="form-control form-control-sm" step="0.01" min="0" value="{% if posted %}{{ posted.mixto_yape|default:'0' }}{% else %}0{% endif %}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Transferencia</label>
+                                <input type="number" name="mixto_transferencia" class="form-control form-control-sm" step="0.01" min="0" value="{% if posted %}{{ posted.mixto_transferencia|default:'0' }}{% else %}0{% endif %}">
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="documentos_recibidos" id="documentos_recibidos" checked>
+                        <input class="form-check-input" type="checkbox" name="documentos_recibidos" id="documentos_recibidos" {% if not posted or posted.documentos_recibidos == 'on' %}checked{% endif %}>
                         <label class="form-check-label" for="documentos_recibidos">
                             Documentos recibidos
                         </label>
                     </div>
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'checkin_rapido' %}" class="btn btn-secondary">Cancelar</a>
-                        <button type="submit" class="btn btn-info btn-lg">
+                        <button type="submit" class="btn btn-primary btn-lg">
                             <i class="bi bi-check-circle"></i> Confirmar Check-in
                         </button>
                     </div>
@@ -96,7 +120,7 @@
                                 <td>{{ reserva.fecha_salida }}</td>
                                 <td>{{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</td>
                                 <td>
-                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-info">
+                                    <a href="?reserva_id={{ reserva.id }}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-check-circle"></i> Check-in
                                     </a>
                                 </td>
@@ -114,6 +138,35 @@
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if hacer_checkin %}
+<script>
+(function () {
+    const deposito = document.getElementById('checkin-deposito');
+    const metodo = document.getElementById('checkin-metodo-deposito');
+    if (!deposito || !metodo) return;
+
+    const boxMixto = document.getElementById('desglose-mixto-deposito');
+
+    function syncMetodo() {
+        const dep = parseFloat(deposito.value || '0');
+        const requiere = !isNaN(dep) && dep > 0;
+        metodo.required = requiere;
+        if (!requiere) metodo.value = '';
+        if (boxMixto) {
+            const showMixto = requiere && metodo.value === 'mixto';
+            boxMixto.style.display = showMixto ? '' : 'none';
+        }
+    }
+
+    deposito.addEventListener('input', syncMetodo);
+    metodo.addEventListener('change', syncMetodo);
+    syncMetodo();
+})();
+</script>
 {% endif %}
 {% endblock %}
 

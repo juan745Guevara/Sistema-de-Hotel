@@ -9,10 +9,12 @@ Este módulo contiene todos los modelos de datos del sistema:
 - CheckOut: Registro de check-out de una reserva
 """
 
+from decimal import Decimal
+
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MinValueValidator
-from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -277,7 +279,7 @@ class Huesped(models.Model):
     
     nacionalidad = models.CharField(
         max_length=100,
-        default='México',
+        default='Perú',
         verbose_name='Nacionalidad'
     )
     
@@ -588,6 +590,27 @@ class Reserva(models.Model):
         super().save(*args, **kwargs)
 
 
+def _validar_desglose_cuatro_medios(total, efectivo, tarjeta, yape, transferencia):
+    """
+    Valida que cuatro montos no negativos sumen `total` y que al menos dos medios tengan monto > 0.
+    Usado en check-out (pago mixto) y check-in (depósito mixto).
+    Devuelve mensaje de error (str) o None.
+    """
+    q = Decimal('0.01')
+    total_q = (total or Decimal('0')).quantize(q)
+    e = (efectivo or Decimal('0')).quantize(q)
+    ta = (tarjeta or Decimal('0')).quantize(q)
+    y = (yape or Decimal('0')).quantize(q)
+    tr = (transferencia or Decimal('0')).quantize(q)
+    soma = (e + ta + y + tr).quantize(q)
+    if soma != total_q:
+        return 'La suma de efectivo, tarjeta, Yape y transferencia debe ser igual al monto total indicado.'
+    medios_con_monto = sum(1 for x in (e, ta, y, tr) if x > 0)
+    if medios_con_monto < 2:
+        return 'Indique al menos dos medios con monto mayor a cero (por ejemplo efectivo y Yape).'
+    return None
+
+
 class CheckIn(models.Model):
     """
     Modelo que representa el registro de check-in de una reserva.
@@ -630,10 +653,12 @@ class CheckIn(models.Model):
     DEPOSITO_EFECTIVO = 'efectivo'
     DEPOSITO_YAPE = 'yape'
     DEPOSITO_TRANSFERENCIA = 'transferencia'
+    DEPOSITO_MIXTO = 'mixto'
     METODO_DEPOSITO_CHOICES = [
         (DEPOSITO_EFECTIVO, 'Efectivo'),
         (DEPOSITO_YAPE, 'Yape'),
         (DEPOSITO_TRANSFERENCIA, 'Transferencia'),
+        (DEPOSITO_MIXTO, 'Mixto'),
     ]
 
     deposito = models.DecimalField(
@@ -651,7 +676,40 @@ class CheckIn(models.Model):
         blank=True,
         null=True,
         verbose_name='Método del depósito',
-        help_text='Cómo se recibió el depósito (Yape, efectivo o transferencia)',
+        help_text='Cómo se recibió el depósito (incluye mixto con desglose)',
+    )
+
+    mixto_efectivo = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Dep. mixto — efectivo',
+        help_text='Parte en efectivo cuando el depósito es mixto',
+    )
+    mixto_tarjeta = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Dep. mixto — tarjeta',
+        help_text='Parte con tarjeta cuando el depósito es mixto',
+    )
+    mixto_yape = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Dep. mixto — Yape',
+        help_text='Parte por Yape cuando el depósito es mixto',
+    )
+    mixto_transferencia = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Dep. mixto — transferencia',
+        help_text='Parte por transferencia cuando el depósito es mixto',
     )
     
     notas = models.TextField(
@@ -677,6 +735,62 @@ class CheckIn(models.Model):
     def __str__(self):
         return f'Check-in Reserva #{self.reserva.id} - {self.fecha_hora.strftime("%Y-%m-%d %H:%M")}'
 
+    @classmethod
+    def validar_desglose_mixto_deposito(cls, total_deposito, efectivo, tarjeta, yape, transferencia):
+        return _validar_desglose_cuatro_medios(total_deposito, efectivo, tarjeta, yape, transferencia)
+
+    @property
+    def desglose_deposito_mixto_partes(self):
+        if self.metodo_deposito != self.DEPOSITO_MIXTO:
+            return []
+        pares = [
+            ('Efectivo', self.mixto_efectivo or Decimal('0')),
+            ('Tarjeta', self.mixto_tarjeta or Decimal('0')),
+            ('Yape', self.mixto_yape or Decimal('0')),
+            ('Transferencia', self.mixto_transferencia or Decimal('0')),
+        ]
+        return [(lbl, m) for lbl, m in pares if m > 0]
+
+    def clean(self):
+        super().clean()
+        dep = self.deposito or Decimal('0')
+        if dep <= 0:
+            return
+        if not self.metodo_deposito:
+            raise ValidationError(
+                {'metodo_deposito': ['Si hay depósito, indique el método (o mixto con desglose).']}
+            )
+        if self.metodo_deposito != self.DEPOSITO_MIXTO:
+            return
+        err = _validar_desglose_cuatro_medios(
+            dep,
+            self.mixto_efectivo,
+            self.mixto_tarjeta,
+            self.mixto_yape,
+            self.mixto_transferencia,
+        )
+        if err:
+            raise ValidationError({'mixto_efectivo': [err]})
+
+    def save(self, *args, **kwargs):
+        dep = self.deposito or Decimal('0')
+        if dep > 0 and not self.metodo_deposito:
+            raise ValidationError(
+                {'metodo_deposito': ['Si hay depósito, indique el método (o mixto con desglose).']}
+            )
+        if self.deposito <= 0:
+            self.metodo_deposito = None
+            self.mixto_efectivo = Decimal('0')
+            self.mixto_tarjeta = Decimal('0')
+            self.mixto_yape = Decimal('0')
+            self.mixto_transferencia = Decimal('0')
+        elif self.metodo_deposito != self.DEPOSITO_MIXTO:
+            self.mixto_efectivo = Decimal('0')
+            self.mixto_tarjeta = Decimal('0')
+            self.mixto_yape = Decimal('0')
+            self.mixto_transferencia = Decimal('0')
+        super().save(*args, **kwargs)
+
 
 class CheckOut(models.Model):
     """
@@ -691,12 +805,14 @@ class CheckOut(models.Model):
     
     METODO_EFECTIVO = 'efectivo'
     METODO_TARJETA = 'tarjeta'
+    METODO_YAPE = 'yape'
     METODO_TRANSFERENCIA = 'transferencia'
     METODO_MIXTO = 'mixto'
     
     METODO_PAGO_CHOICES = [
         (METODO_EFECTIVO, 'Efectivo'),
         (METODO_TARJETA, 'Tarjeta'),
+        (METODO_YAPE, 'Yape'),
         (METODO_TRANSFERENCIA, 'Transferencia'),
         (METODO_MIXTO, 'Mixto'),
     ]
@@ -746,6 +862,39 @@ class CheckOut(models.Model):
         verbose_name='Método de Pago',
         help_text='Método utilizado para el pago'
     )
+
+    mixto_efectivo = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Mixto — efectivo',
+        help_text='Parte en efectivo cuando el pago es mixto',
+    )
+    mixto_tarjeta = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Mixto — tarjeta',
+        help_text='Parte con tarjeta cuando el pago es mixto',
+    )
+    mixto_yape = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Mixto — Yape',
+        help_text='Parte por Yape cuando el pago es mixto',
+    )
+    mixto_transferencia = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Mixto — transferencia',
+        help_text='Parte por transferencia cuando el pago es mixto',
+    )
     
     # ========== CAMPOS DE EVALUACIÓN ==========
     
@@ -786,3 +935,42 @@ class CheckOut(models.Model):
 
     def __str__(self):
         return f'Check-out Reserva #{self.reserva.id} - {self.fecha_hora.strftime("%Y-%m-%d %H:%M")}'
+
+    @classmethod
+    def validar_desglose_mixto(cls, total_pagado, efectivo, tarjeta, yape, transferencia):
+        """Valida montos del desglose cuando metodo_pago es mixto."""
+        return _validar_desglose_cuatro_medios(total_pagado, efectivo, tarjeta, yape, transferencia)
+
+    def desglose_mixto_partes(self):
+        """Pares (etiqueta, monto) con monto > 0; vacío si no aplica."""
+        if self.metodo_pago != self.METODO_MIXTO:
+            return []
+        pares = [
+            ('Efectivo', self.mixto_efectivo or Decimal('0')),
+            ('Tarjeta', self.mixto_tarjeta or Decimal('0')),
+            ('Yape', self.mixto_yape or Decimal('0')),
+            ('Transferencia', self.mixto_transferencia or Decimal('0')),
+        ]
+        return [(lbl, m) for lbl, m in pares if m > 0]
+
+    def clean(self):
+        super().clean()
+        if self.metodo_pago != self.METODO_MIXTO:
+            return
+        err = self.validar_desglose_mixto(
+            self.total_pagado,
+            self.mixto_efectivo,
+            self.mixto_tarjeta,
+            self.mixto_yape,
+            self.mixto_transferencia,
+        )
+        if err:
+            raise ValidationError({'mixto_efectivo': [err]})
+
+    def save(self, *args, **kwargs):
+        if self.metodo_pago != self.METODO_MIXTO:
+            self.mixto_efectivo = Decimal('0')
+            self.mixto_tarjeta = Decimal('0')
+            self.mixto_yape = Decimal('0')
+            self.mixto_transferencia = Decimal('0')
+        super().save(*args, **kwargs)

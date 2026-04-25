@@ -48,6 +48,21 @@
                         </button>
                     </div>
                 </form>
+                <script>
+                (function () {
+                    var sel = document.getElementById('id_metodo_deposito_checkin');
+                    function sync() {
+                        if (!sel) return;
+                        var show = sel.value === 'mixto';
+                        document.querySelectorAll('.mixto-dep-monto-input').forEach(function (inp) {
+                            var grp = inp.closest('.mb-3');
+                            if (grp) grp.style.display = show ? '' : 'none';
+                        });
+                    }
+                    if (sel) sel.addEventListener('change', sync);
+                    sync();
+                })();
+                </script>
             </div>
         </div>
     </div>

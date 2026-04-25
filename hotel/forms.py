@@ -1,3 +1,6 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.validators import UnicodeUsernameValidator
@@ -13,10 +16,14 @@ class HuespedForm(forms.ModelForm):
         model = Huesped
         fields = ['documento_identidad', 'nombre', 'apellidos', 'lugar_procedencia']
         widgets = {
-            'documento_identidad': forms.TextInput(attrs={'class': 'form-control'}),
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'apellidos': forms.TextInput(attrs={'class': 'form-control'}),
-            'lugar_procedencia': forms.TextInput(attrs={'class': 'form-control'}),
+            'documento_identidad': forms.TextInput(
+                attrs={'class': 'form-control', 'inputmode': 'numeric', 'autocomplete': 'off'}
+            ),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'given-name'}),
+            'apellidos': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'family-name'}),
+            'lugar_procedencia': forms.TextInput(
+                attrs={'class': 'form-control', 'autocomplete': 'address-level2'}
+            ),
         }
 
 
@@ -53,31 +60,48 @@ class ReservaForm(forms.ModelForm):
     huesped_documento = forms.CharField(
         label='DNI',
         max_length=50,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 12345678'}),
+        widget=forms.TextInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. 12345678',
+                'inputmode': 'numeric',
+                'autocomplete': 'off',
+            }
+        ),
     )
     huesped_nombre = forms.CharField(
         label='Nombres',
         max_length=100,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'given-name'}),
     )
     huesped_apellidos = forms.CharField(
         label='Apellidos',
         max_length=100,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'family-name'}),
     )
     huesped_lugar_procedencia = forms.CharField(
         label='Lugar de procedencia',
         max_length=200,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ciudad o país de origen'}),
+        widget=forms.TextInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Ciudad o país de origen',
+                'autocomplete': 'address-level2',
+            }
+        ),
     )
 
     class Meta:
         model = Reserva
         fields = ['habitacion', 'fecha_entrada', 'fecha_salida', 'numero_huespedes', 'notas']
         widgets = {
-            'fecha_entrada': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'numero_huespedes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'fecha_entrada': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}
+            ),
+            'fecha_salida': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}
+            ),
+            'numero_huespedes': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -111,6 +135,12 @@ class ReservaForm(forms.ModelForm):
             ]
         )
 
+        if not self.instance.pk:
+            hoy = timezone.localdate()
+            self.fields['fecha_entrada'].initial = hoy
+            self.fields['fecha_salida'].initial = hoy + timedelta(days=1)
+            self.fields['numero_huespedes'].initial = 1
+
     def clean(self):
         cleaned_data = super().clean()
         fecha_entrada = cleaned_data.get('fecha_entrada')
@@ -132,16 +162,22 @@ class ReservaForm(forms.ModelForm):
 
         if fecha_entrada and fecha_salida:
             if fecha_entrada >= fecha_salida:
-                raise ValidationError('La fecha de salida debe ser posterior a la fecha de entrada.')
+                raise ValidationError('La salida debe ser después de la entrada.')
 
             # Comparar con el calendario local del hotel (TIME_ZONE), no con la fecha UTC.
-            if not self.instance.pk and fecha_entrada < timezone.localdate():
-                raise ValidationError('La fecha de entrada no puede ser en el pasado.')
+            hoy = timezone.localdate()
+            if not self.instance.pk and fecha_entrada < hoy:
+                raise ValidationError('La entrada no puede estar en el pasado.')
+            if self.instance.pk and fecha_entrada < hoy and fecha_entrada != self.instance.fecha_entrada:
+                raise ValidationError(
+                    'La nueva fecha de entrada no puede estar en el pasado.'
+                )
 
         if habitacion and numero_huespedes:
             if numero_huespedes > habitacion.capacidad:
                 raise ValidationError(
-                    f'El número de huéspedes ({numero_huespedes}) excede la capacidad de la habitación ({habitacion.capacidad}).'
+                    f'La habitación permite hasta {habitacion.capacidad} huésped(es). '
+                    f'Ingresaste {numero_huespedes}.'
                 )
 
         if habitacion and fecha_entrada and fecha_salida:
@@ -161,8 +197,8 @@ class ReservaForm(forms.ModelForm):
             if reservas_conflictivas.exists():
                 otra = reservas_conflictivas.first()
                 raise ValidationError(
-                    f'La habitación no está disponible en esas fechas: ya hay una reserva activa '
-                    f'(#{otra.id}, {otra.get_estado_display()}, {otra.fecha_entrada} → {otra.fecha_salida}).'
+                    f'La habitación ya está ocupada en ese rango. '
+                    f'Reserva detectada: #{otra.id} ({otra.fecha_entrada} a {otra.fecha_salida}).'
                 )
 
         return cleaned_data
@@ -218,19 +254,48 @@ class CheckInForm(forms.ModelForm):
 
     class Meta:
         model = CheckIn
-        fields = ['documentos_recibidos', 'deposito', 'metodo_deposito', 'notas']
+        fields = [
+            'documentos_recibidos',
+            'deposito',
+            'metodo_deposito',
+            'mixto_efectivo',
+            'mixto_tarjeta',
+            'mixto_yape',
+            'mixto_transferencia',
+            'notas',
+        ]
         labels = {
             'deposito': 'Depósito (soles)',
             'metodo_deposito': 'Método del depósito',
+            'mixto_efectivo': 'Mixto: efectivo (S/)',
+            'mixto_tarjeta': 'Mixto: tarjeta (S/)',
+            'mixto_yape': 'Mixto: Yape (S/)',
+            'mixto_transferencia': 'Mixto: transferencia (S/)',
         }
         help_texts = {
             'deposito': 'Monto en soles (S/).',
-            'metodo_deposito': 'Solo si hay depósito: Yape, efectivo o transferencia.',
+            'metodo_deposito': 'Si hay depósito: efectivo, Yape, transferencia o mixto (con desglose).',
+            'mixto_efectivo': 'Solo si el método es Mixto: debe sumar al depósito y usar al menos dos medios.',
+            'mixto_tarjeta': 'Solo si el método es Mixto.',
+            'mixto_yape': 'Solo si el método es Mixto.',
+            'mixto_transferencia': 'Solo si el método es Mixto.',
         }
         widgets = {
             'documentos_recibidos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'deposito': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'metodo_deposito': forms.Select(attrs={'class': 'form-control'}),
+            'metodo_deposito': forms.Select(attrs={'class': 'form-control', 'id': 'id_metodo_deposito_checkin'}),
+            'mixto_efectivo': forms.NumberInput(
+                attrs={'class': 'form-control mixto-dep-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_tarjeta': forms.NumberInput(
+                attrs={'class': 'form-control mixto-dep-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_yape': forms.NumberInput(
+                attrs={'class': 'form-control mixto-dep-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_transferencia': forms.NumberInput(
+                attrs={'class': 'form-control mixto-dep-monto-input', 'step': '0.01', 'min': '0'}
+            ),
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -242,8 +307,6 @@ class CheckInForm(forms.ModelForm):
         ] + list(CheckIn.METODO_DEPOSITO_CHOICES)
 
     def clean(self):
-        from decimal import Decimal
-
         cleaned = super().clean()
         dep = cleaned.get('deposito')
         if dep is None:
@@ -252,12 +315,36 @@ class CheckInForm(forms.ModelForm):
         if met in (None, ''):
             met = None
             cleaned['metodo_deposito'] = None
-        if dep > 0 and not met:
-            raise ValidationError(
-                {'metodo_deposito': 'Si hay depósito, indique si fue por Yape, efectivo o transferencia.'}
-            )
         if dep <= 0:
             cleaned['metodo_deposito'] = None
+            cleaned['mixto_efectivo'] = Decimal('0')
+            cleaned['mixto_tarjeta'] = Decimal('0')
+            cleaned['mixto_yape'] = Decimal('0')
+            cleaned['mixto_transferencia'] = Decimal('0')
+            return cleaned
+        if not met:
+            raise ValidationError(
+                {
+                    'metodo_deposito': [
+                        'Si hay depósito, indique el método (efectivo, Yape, transferencia o mixto).'
+                    ]
+                }
+            )
+        if met != CheckIn.DEPOSITO_MIXTO:
+            cleaned['mixto_efectivo'] = Decimal('0')
+            cleaned['mixto_tarjeta'] = Decimal('0')
+            cleaned['mixto_yape'] = Decimal('0')
+            cleaned['mixto_transferencia'] = Decimal('0')
+            return cleaned
+        err = CheckIn.validar_desglose_mixto_deposito(
+            dep,
+            cleaned.get('mixto_efectivo'),
+            cleaned.get('mixto_tarjeta'),
+            cleaned.get('mixto_yape'),
+            cleaned.get('mixto_transferencia'),
+        )
+        if err:
+            raise ValidationError({'mixto_efectivo': [err]})
         return cleaned
 
 
@@ -266,20 +353,69 @@ class CheckOutForm(forms.ModelForm):
 
     class Meta:
         model = CheckOut
-        fields = ['total_pagado', 'metodo_pago', 'danos_observados', 'calificacion', 'notas']
+        fields = [
+            'total_pagado',
+            'metodo_pago',
+            'mixto_efectivo',
+            'mixto_tarjeta',
+            'mixto_yape',
+            'mixto_transferencia',
+            'danos_observados',
+            'notas',
+        ]
         labels = {
             'total_pagado': 'Total pagado (soles)',
+            'mixto_efectivo': 'Mixto: efectivo (S/)',
+            'mixto_tarjeta': 'Mixto: tarjeta (S/)',
+            'mixto_yape': 'Mixto: Yape (S/)',
+            'mixto_transferencia': 'Mixto: transferencia (S/)',
         }
         help_texts = {
             'total_pagado': 'Monto en soles (S/).',
+            'mixto_efectivo': 'Solo si el método es Mixto: debe sumar al total y usar al menos dos medios.',
+            'mixto_tarjeta': 'Solo si el método es Mixto.',
+            'mixto_yape': 'Solo si el método es Mixto.',
+            'mixto_transferencia': 'Solo si el método es Mixto.',
         }
         widgets = {
             'total_pagado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'metodo_pago': forms.Select(attrs={'class': 'form-control'}),
+            'metodo_pago': forms.Select(attrs={'class': 'form-control', 'id': 'id_metodo_pago_checkout'}),
+            'mixto_efectivo': forms.NumberInput(
+                attrs={'class': 'form-control mixto-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_tarjeta': forms.NumberInput(
+                attrs={'class': 'form-control mixto-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_yape': forms.NumberInput(
+                attrs={'class': 'form-control mixto-monto-input', 'step': '0.01', 'min': '0'}
+            ),
+            'mixto_transferencia': forms.NumberInput(
+                attrs={'class': 'form-control mixto-monto-input', 'step': '0.01', 'min': '0'}
+            ),
             'danos_observados': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'calificacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 5}),
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        metodo = cleaned.get('metodo_pago')
+        if metodo != CheckOut.METODO_MIXTO:
+            cleaned['mixto_efectivo'] = Decimal('0')
+            cleaned['mixto_tarjeta'] = Decimal('0')
+            cleaned['mixto_yape'] = Decimal('0')
+            cleaned['mixto_transferencia'] = Decimal('0')
+            return cleaned
+        total = cleaned.get('total_pagado')
+        err = CheckOut.validar_desglose_mixto(
+            total,
+            cleaned.get('mixto_efectivo'),
+            cleaned.get('mixto_tarjeta'),
+            cleaned.get('mixto_yape'),
+            cleaned.get('mixto_transferencia'),
+        )
+        if err:
+            raise ValidationError({'mixto_efectivo': [err]})
+        return cleaned
 
 
 class CrearPersonalHotelForm(forms.Form):

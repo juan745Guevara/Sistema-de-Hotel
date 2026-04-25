@@ -77,7 +77,24 @@ class ReservaAdmin(admin.ModelAdmin):
 
 @admin.register(CheckIn)
 class CheckInAdmin(admin.ModelAdmin):
-    list_display = ['reserva', 'fecha_hora', 'empleado', 'deposito', 'metodo_deposito', 'documentos_recibidos']
+    list_display = [
+        'reserva',
+        'fecha_hora',
+        'empleado',
+        'deposito',
+        'metodo_deposito',
+        'desglose_deposito_mixto_admin',
+        'documentos_recibidos',
+    ]
+
+    @admin.display(description='Desglose dep. mixto')
+    def desglose_deposito_mixto_admin(self, obj):
+        if obj.metodo_deposito != CheckIn.DEPOSITO_MIXTO:
+            return '—'
+        partes = obj.desglose_deposito_mixto_partes
+        if not partes:
+            return '—'
+        return ' · '.join(f'{lbl} {m}' for lbl, m in partes)
     list_filter = ['fecha_hora', 'documentos_recibidos', 'metodo_deposito']
     search_fields = ['reserva__huesped__nombre', 'reserva__huesped__apellidos']
 
@@ -87,7 +104,17 @@ class CheckInAdmin(admin.ModelAdmin):
 
 @admin.register(CheckOut)
 class CheckOutAdmin(admin.ModelAdmin):
-    list_display = ['reserva', 'fecha_hora', 'registrado_por', 'total_pagado', 'metodo_pago', 'calificacion']
+    list_display = ['reserva', 'fecha_hora', 'registrado_por', 'total_pagado', 'metodo_pago', 'desglose_mixto_admin']
+
+    @admin.display(description='Desglose mixto')
+    def desglose_mixto_admin(self, obj):
+        if obj.metodo_pago != CheckOut.METODO_MIXTO:
+            return '—'
+        partes = obj.desglose_mixto_partes()
+        if not partes:
+            return '—'
+        return ' · '.join(f'{lbl} {m}' for lbl, m in partes)
+    exclude = ['calificacion']
     list_filter = ['metodo_pago', 'fecha_hora']
     search_fields = ['reserva__huesped__nombre', 'reserva__huesped__apellidos']
 

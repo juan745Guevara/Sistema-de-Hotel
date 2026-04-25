@@ -34,7 +34,7 @@
                 {% endif %}
             {% endif %}
         </div>
-        {% if request.membership.role == 'limpieza' or request.membership.role == 'admin' %}
+        {% if request.membership.role == 'limpieza' or request.membership.role == 'admin' or request.membership.role == 'recepcion' %}
             {% if habitacion.estado == 'limpieza' or habitacion.estado == 'mantenimiento' %}
             <form method="post" action="{% url 'actualizar_estado_habitacion' habitacion.id %}" class="mt-2 mb-0">
                 {% csrf_token %}

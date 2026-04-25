@@ -12,9 +12,11 @@
 
 <div class="alert alert-secondary py-2 small mb-4">
     <strong>Qué significa cada total:</strong>
-    <em>Ingresos por reservas</em> suma el precio de reservas con entrada en el período (no canceladas).
-    <em>Pagos en check-out</em> son los cobros registrados al salir.
-    <em>Depósitos en check-in</em> son montos recibidos al ingresar (Yape, efectivo o transferencia).
+    <em>Ingresos por reservas</em> suma el precio de reservas con <strong>fecha de entrada</strong> en el rango de fechas (no canceladas); <strong>no usa el filtro de hora</strong>.
+    <em>Pagos en check-out</em>, <em>depósitos</em>, <em>resumen de caja</em> y las tablas de movimientos usan la <strong>fecha y hora real</strong> del registro, en la ventana <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (zona <strong>{{ time_zone_label }}</strong>).
+    {% if turno_cruza_medianoche %}
+    <span class="d-block mt-2"><strong>Turno nocturno:</strong> al usar la <strong>misma fecha</strong> con hora hasta menor que la de inicio (ej. 22:00–06:00), el fin se interpreta al <strong>día siguiente</strong> a esa hora.</span>
+    {% endif %}
 </div>
 
 <div class="row mb-4">
@@ -25,20 +27,92 @@
             </div>
             <div class="card-body">
                 <form method="get" class="row g-3 align-items-end">
-                    <div class="col-md-4 col-lg-3">
-                        <label class="form-label">Desde</label>
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Desde (fecha)</label>
                         <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
                     </div>
-                    <div class="col-md-4 col-lg-3">
-                        <label class="form-label">Hasta</label>
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Hasta (fecha)</label>
                         <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
                     </div>
-                    <div class="col-md-4 col-lg-3">
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label class="form-label">Desde (hora)</label>
+                        <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Aplica a check-ins, check-outs y totales por método (no al total por reservas)">
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label class="form-label">Hasta (hora)</label>
+                        <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60" title="Incluye el minuto seleccionado completo">
+                    </div>
+                    <div class="col-12 col-lg-2">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-search"></i> Generar
                         </button>
                     </div>
                 </form>
+                <p class="small text-muted mb-0 mt-2">
+                    Ventana de turno: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (<strong>{{ time_zone_label }}</strong>).
+                    Deja <strong>00:00</strong> a <strong>23:59</strong> en la misma fecha para el día completo.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm border-start border-4 border-success">
+            <div class="card-header bg-body-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> Resumen del turno (caja / medios)</h5>
+                <span class="badge text-bg-secondary">Solo movimientos dentro de la ventana de hora</span>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    Suma de <strong>depósitos en check-in</strong> y <strong>cobros en check-out</strong> registrados en el rango, repartida por cómo se pagó (incluye desglose de <strong>mixtos</strong> y cualquier <strong>diferencia</strong> frente al total en efectivo).
+                    <strong>Efectivo</strong> es lo que suele coincidir con lo que va a caja física.
+                </p>
+                {% if turno_medios.sin_metodo %}
+                <div class="alert alert-warning py-2 small mb-3">
+                    Hay <strong>{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</strong> en depósitos/cobros <strong>sin método de pago</strong> registrado (o método desconocido). Revise esos check-ins en el detalle y complete el método para cuadrar caja con precisión.
+                </div>
+                {% endif %}
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded bg-success bg-opacity-10 h-100">
+                            <div class="small text-muted text-uppercase">Efectivo</div>
+                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.efectivo|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded bg-warning bg-opacity-10 h-100">
+                            <div class="small text-muted text-uppercase">Yape</div>
+                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.yape|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded bg-primary bg-opacity-10 h-100">
+                            <div class="small text-muted text-uppercase">Tarjeta</div>
+                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.tarjeta|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded bg-secondary bg-opacity-10 h-100">
+                            <div class="small text-muted text-uppercase">Transferencia</div>
+                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.transferencia|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                    {% if turno_medios.sin_metodo %}
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded bg-danger bg-opacity-10 h-100">
+                            <div class="small text-muted text-uppercase">Sin método</div>
+                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mt-3 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span class="fw-semibold">Total movimientos del turno</span>
+                    <span class="fs-5">{{ MONEDA_SIMBOLO }}{{ turno_medios.total|floatformat:2 }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -50,7 +124,7 @@
             <div class="card-body">
                 <h6 class="text-white-50 text-uppercase small">Reservas (precio)</h6>
                 <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_reservas|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma de <code>precio_total</code> por fecha de entrada</p>
+                <p class="small mb-0 mt-2 opacity-75">Suma del precio de cada reserva según su <strong>fecha de entrada</strong> en el período.</p>
             </div>
         </div>
     </div>
@@ -59,7 +133,7 @@
             <div class="card-body">
                 <h6 class="text-white-50 text-uppercase small">Check-outs (cobrado)</h6>
                 <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_checkouts|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma de <code>total_pagado</code> por fecha de check-out</p>
+                <p class="small mb-0 mt-2 opacity-75">Suma de lo <strong>cobrado al salir</strong> (check-out) según la <strong>fecha del cobro</strong> en el período.</p>
             </div>
         </div>
     </div>
@@ -103,6 +177,31 @@
                 {% else %}
                 <p class="text-muted mb-0">No hay check-outs en este período.</p>
                 {% endif %}
+                {% if ingresos_mixto_tiene_datos %}
+                <hr class="my-3">
+                <h6 class="text-muted small text-uppercase">Desglose de pagos mixtos</h6>
+                <p class="small text-muted mb-2">Suma de cada medio solo en check-outs marcados como <strong>Mixto</strong> (el total por método arriba ya incluye el monto completo de esos cobros).</p>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medio</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ingresos_mixto_desglose %}
+                            {% if item.total %}
+                            <tr>
+                                <td>{{ item.label }}</td>
+                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -133,6 +232,31 @@
                 </div>
                 {% else %}
                 <p class="text-muted mb-0">No hay depósitos con método registrado en este período.</p>
+                {% endif %}
+                {% if depositos_mixto_tiene_datos %}
+                <hr class="my-3">
+                <h6 class="text-muted small text-uppercase">Desglose de depósitos mixtos</h6>
+                <p class="small text-muted mb-2">Suma por medio solo en check-ins con depósito <strong>Mixto</strong>.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medio</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in depositos_mixto_desglose %}
+                            {% if item.total %}
+                            <tr>
+                                <td>{{ item.label }}</td>
+                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
                 {% endif %}
             </div>
         </div>

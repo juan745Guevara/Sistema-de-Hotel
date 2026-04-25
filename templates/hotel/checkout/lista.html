@@ -53,7 +53,6 @@
                                 <th>Registrado por</th>
                                 <th>Total Pagado</th>
                                 <th>Método de Pago</th>
-                                <th>Calificación</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -66,12 +65,10 @@
                                 <td class="text-nowrap">{{ checkout.fecha_hora|date:"d/m/Y H:i" }}</td>
                                 <td>{% if checkout.registrado_por %}{{ checkout.registrado_por.get_username }}{% else %}—{% endif %}</td>
                                 <td>{{ MONEDA_SIMBOLO }}{{ checkout.total_pagado|floatformat:2 }}</td>
-                                <td>{{ checkout.get_metodo_pago_display }}</td>
                                 <td>
-                                    {% if checkout.calificacion %}
-                                    {{ checkout.calificacion }}/5
-                                    {% else %}
-                                    N/A
+                                    {{ checkout.get_metodo_pago_display }}
+                                    {% if checkout.metodo_pago == 'mixto' and checkout.desglose_mixto_partes %}
+                                    <br><span class="small text-muted">{% for etiqueta, monto in checkout.desglose_mixto_partes %}{{ etiqueta }} {{ MONEDA_SIMBOLO }}{{ monto|floatformat:2 }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
                                     {% endif %}
                                 </td>
                                 <td>

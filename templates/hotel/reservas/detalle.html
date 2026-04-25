@@ -87,6 +87,14 @@
                 {% if checkin.metodo_deposito %}
                 <p><strong>Método del depósito:</strong> {{ checkin.get_metodo_deposito_display }}</p>
                 {% endif %}
+                {% if checkin.metodo_deposito == 'mixto' and checkin.desglose_deposito_mixto_partes %}
+                <p class="mb-1"><strong>Desglose del depósito:</strong></p>
+                <ul class="mb-2">
+                    {% for etiqueta, monto in checkin.desglose_deposito_mixto_partes %}
+                    <li>{{ etiqueta }}: {{ MONEDA_SIMBOLO }}{{ monto|floatformat:2 }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
                 {% endif %}
                 {% if checkin.notas %}
                 <p><strong>Notas:</strong> {{ checkin.notas }}</p>
@@ -133,8 +141,13 @@
                 {% endif %}
                 <p><strong>Total Pagado:</strong> {{ MONEDA_SIMBOLO }}{{ checkout.total_pagado|floatformat:2 }}</p>
                 <p><strong>Método de Pago:</strong> {{ checkout.get_metodo_pago_display }}</p>
-                {% if checkout.calificacion %}
-                <p><strong>Calificación:</strong> {{ checkout.calificacion }}/5</p>
+                {% if checkout.metodo_pago == 'mixto' and checkout.desglose_mixto_partes %}
+                <p class="mb-1"><strong>Desglose:</strong></p>
+                <ul class="mb-2">
+                    {% for etiqueta, monto in checkout.desglose_mixto_partes %}
+                    <li>{{ etiqueta }}: {{ MONEDA_SIMBOLO }}{{ monto|floatformat:2 }}</li>
+                    {% endfor %}
+                </ul>
                 {% endif %}
                 {% if checkout.danos_observados %}
                 <p><strong>Daños Observados:</strong> {{ checkout.danos_observados }}</p>

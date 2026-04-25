@@ -92,7 +92,7 @@
     {% endif %}
 </div>
 
-{% if request.membership.role == 'admin' or request.membership.role == 'limpieza' %}
+{% if request.membership.role == 'admin' or request.membership.role == 'recepcion' or request.membership.role == 'limpieza' %}
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="card border-primary">
@@ -111,6 +111,7 @@
                                     <option value="{{ value }}" {% if habitacion.estado == value %}selected{% endif %}>{{ label }}</option>
                                     {% endif %}
                                 {% else %}
+                                    {# admin y recepción: todos los estados #}
                                     <option value="{{ value }}" {% if habitacion.estado == value %}selected{% endif %}>{{ label }}</option>
                                 {% endif %}
                             {% endfor %}

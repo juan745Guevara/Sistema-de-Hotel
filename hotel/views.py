@@ -1,8 +1,9 @@
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import (
     Q,
     Count,
@@ -16,18 +17,47 @@ from django.db.models import (
     IntegerField,
 )
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
+from decimal import Decimal
+import logging
 from .models import Habitacion, Huesped, Membership, Reserva, CheckIn, CheckOut
 from .forms import (
     CrearPersonalHotelForm,
-    HuespedForm,
     HabitacionForm,
     ReservaForm,
     CheckInForm,
     CheckOutForm,
 )
+from .pdf_registro import build_registro_pdf
+
+logger = logging.getLogger(__name__)
+
+
+def _parse_fecha_filtro_url(s):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(str(s).strip(), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _aplicar_filtro_dia_local(qs, campo_fecha_hora, fecha_desde_str, fecha_hasta_str):
+    """Filtra por días naturales en TIME_ZONE (evita desfases de __date__ respecto a UTC)."""
+    tz = timezone.get_default_timezone()
+    d_desde = _parse_fecha_filtro_url(fecha_desde_str)
+    if d_desde:
+        inicio = timezone.make_aware(datetime.combine(d_desde, time.min), tz)
+        qs = qs.filter(**{f'{campo_fecha_hora}__gte': inicio})
+    d_hasta = _parse_fecha_filtro_url(fecha_hasta_str)
+    if d_hasta:
+        fin_excl = timezone.make_aware(
+            datetime.combine(d_hasta + timedelta(days=1), time.min), tz
+        )
+        qs = qs.filter(**{f'{campo_fecha_hora}__lt': fin_excl})
+    return qs
 
 
 def _checkin_reserva(reserva):
@@ -43,6 +73,14 @@ def _checkout_reserva(reserva):
         return reserva.checkout
     except ObjectDoesNotExist:
         return None
+
+
+def _saldo_sugerido_checkout(reserva):
+    """Saldo típico al salir: precio total menos depósito en check-in (no negativo)."""
+    ci = _checkin_reserva(reserva)
+    dep = ci.deposito if ci else Decimal('0')
+    precio = reserva.precio_total or Decimal('0')
+    return max(Decimal('0'), precio - dep)
 
 
 def _nombre_empleado_checkin(user):
@@ -65,6 +103,13 @@ def _reservas_activas_en_habitacion(habitacion):
             Reserva.ESTADO_CHECKIN,
         ],
     )
+
+
+# Reservas que aún pueden hacer check-in (no canceladas ni con salida cerrada).
+_ESTADOS_RESERVA_CHECKIN_PENDIENTE = (
+    Reserva.ESTADO_PENDIENTE,
+    Reserva.ESTADO_CONFIRMADA,
+)
 
 
 def sincronizar_estado_habitacion(habitacion):
@@ -95,10 +140,10 @@ def index(request):
     habitaciones_ocupadas = Habitacion.objects.filter(estado=Habitacion.ESTADO_OCUPADA).count()
     habitaciones_limpieza = Habitacion.objects.filter(estado=Habitacion.ESTADO_LIMPIEZA).count()
     
-    # Check-ins pendientes: confirmadas, dentro de estancia, sin check-in aún
+    # Check-ins pendientes: pendiente o confirmada, dentro de estancia, sin check-in aún
     checkins_pendientes = (
         Reserva.objects.filter(
-            estado=Reserva.ESTADO_CONFIRMADA,
+            estado__in=_ESTADOS_RESERVA_CHECKIN_PENDIENTE,
             fecha_entrada__lte=hoy,
             fecha_salida__gt=hoy,
         )
@@ -262,6 +307,12 @@ def editar_reserva(request, reserva_id):
         Reserva.objects.select_related('huesped', 'habitacion'),
         id=reserva_id,
     )
+    if reserva.estado not in (Reserva.ESTADO_PENDIENTE, Reserva.ESTADO_CONFIRMADA):
+        messages.error(
+            request,
+            'No se puede editar una reserva que ya tiene check-in o check-out. Use el detalle de la reserva.',
+        )
+        return redirect('detalle_reserva', reserva_id=reserva.id)
 
     if request.method == 'POST':
         form = ReservaForm(request.POST, instance=reserva)
@@ -408,31 +459,18 @@ def editar_habitacion(request, habitacion_id):
 
 @require_http_methods(['POST'])
 def eliminar_habitacion(request, habitacion_id):
-    """Elimina una habitación sin reservas activas (admin)."""
+    """Elimina una habitación solo si no tiene ninguna reserva (evita borrar historial en cascada)."""
     habitacion = get_object_or_404(Habitacion, id=habitacion_id)
-    activas = habitacion.reservas.filter(
-        estado__in=[
-            Reserva.ESTADO_PENDIENTE,
-            Reserva.ESTADO_CONFIRMADA,
-            Reserva.ESTADO_CHECKIN,
-        ]
-    )
-    if activas.exists():
+    if habitacion.reservas.exists():
         messages.error(
             request,
-            'No se puede eliminar esta habitación: tiene reservas pendientes, confirmadas o con check-in.',
+            'No se puede eliminar esta habitación: tiene reservas en el historial. '
+            'Contacte al administrador si necesita archivar o reasignar datos.',
         )
         return redirect('detalle_habitacion', habitacion_id=habitacion.id)
-    n_historial = habitacion.reservas.count()
     numero = habitacion.numero
     habitacion.delete()
-    if n_historial:
-        messages.warning(
-            request,
-            f'Habitación {numero} eliminada. También se eliminaron {n_historial} reserva(s) del historial.',
-        )
-    else:
-        messages.success(request, f'Habitación {numero} eliminada.')
+    messages.success(request, f'Habitación {numero} eliminada.')
     return redirect('lista_habitaciones')
 
 
@@ -481,11 +519,7 @@ def lista_checkins(request):
     
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
-    
-    if fecha_desde:
-        checkins = checkins.filter(fecha_hora__date__gte=fecha_desde)
-    if fecha_hasta:
-        checkins = checkins.filter(fecha_hora__date__lte=fecha_hasta)
+    checkins = _aplicar_filtro_dia_local(checkins, 'fecha_hora', fecha_desde, fecha_hasta)
     
     context = {
         'checkins': checkins,
@@ -545,11 +579,7 @@ def lista_checkouts(request):
     
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
-    
-    if fecha_desde:
-        checkouts = checkouts.filter(fecha_hora__date__gte=fecha_desde)
-    if fecha_hasta:
-        checkouts = checkouts.filter(fecha_hora__date__lte=fecha_hasta)
+    checkouts = _aplicar_filtro_dia_local(checkouts, 'fecha_hora', fecha_desde, fecha_hasta)
     
     context = {
         'checkouts': checkouts,
@@ -574,7 +604,8 @@ def realizar_checkout(request, reserva_id):
     if reserva.estado != Reserva.ESTADO_CHECKIN:
         messages.error(request, 'Solo se puede hacer check-out con reserva en estado check-in.')
         return redirect('detalle_reserva', reserva_id=reserva.id)
-    
+
+    saldo = _saldo_sugerido_checkout(reserva)
     if request.method == 'POST':
         form = CheckOutForm(request.POST)
         if form.is_valid():
@@ -592,9 +623,13 @@ def realizar_checkout(request, reserva_id):
             messages.success(request, f'Check-out realizado exitosamente para la reserva #{reserva.id}.')
             return redirect('detalle_reserva', reserva_id=reserva.id)
     else:
-        form = CheckOutForm(initial={'total_pagado': reserva.precio_total})
+        form = CheckOutForm(initial={'total_pagado': saldo})
 
-    return render(request, 'hotel/checkout/realizar.html', {'form': form, 'reserva': reserva})
+    return render(
+        request,
+        'hotel/checkout/realizar.html',
+        {'form': form, 'reserva': reserva, 'saldo_sugerido_checkout': saldo},
+    )
 
 
 # ========== GESTIÓN DE HUÉSPEDES ==========
@@ -606,20 +641,25 @@ def reportes(request):
     return render(request, 'hotel/reportes/index.html')
 
 
-def _resolver_rango_fechas(request, dias_default=30):
+def _resolver_rango_fechas(request):
     """
     Resuelve y sanea el rango de fechas para reportes.
-    - Si formato es inválido, usa últimos `dias_default` días.
-    - Si fecha_desde > fecha_hasta, intercambia para evitar errores.
+    - Sin parámetros: desde y hasta = hoy (día local del hotel).
+    - Si falta solo una fecha: la que falta se toma como hoy.
+    - Si el formato es inválido: se usa hoy en ese campo.
+    - Si fecha_desde > fecha_hasta, se intercambian.
     """
     hoy = timezone.localdate()
-    fecha_desde_raw = request.GET.get('fecha_desde')
-    fecha_hasta_raw = request.GET.get('fecha_hasta')
+    fecha_desde_raw = (request.GET.get('fecha_desde') or '').strip()
+    fecha_hasta_raw = (request.GET.get('fecha_hasta') or '').strip()
+
+    if not fecha_desde_raw and not fecha_hasta_raw:
+        return hoy, hoy
 
     try:
-        fecha_desde = datetime.strptime(fecha_desde_raw, '%Y-%m-%d').date() if fecha_desde_raw else (hoy - timedelta(days=dias_default))
+        fecha_desde = datetime.strptime(fecha_desde_raw, '%Y-%m-%d').date() if fecha_desde_raw else hoy
     except (ValueError, TypeError):
-        fecha_desde = hoy - timedelta(days=dias_default)
+        fecha_desde = hoy
 
     try:
         fecha_hasta = datetime.strptime(fecha_hasta_raw, '%Y-%m-%d').date() if fecha_hasta_raw else hoy
@@ -632,9 +672,171 @@ def _resolver_rango_fechas(request, dias_default=30):
     return fecha_desde, fecha_hasta
 
 
+def _parse_hora_hh_mm(s, default_h, default_m=0):
+    """Interpreta 'HH:MM' o 'HH:MM:SS' (p. ej. input type=time)."""
+    if not s or not str(s).strip():
+        return time(default_h, default_m)
+    parts = str(s).strip().split(':')
+    try:
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 0
+        return time(h % 24, max(0, min(m, 59)))
+    except (ValueError, IndexError, TypeError):
+        return time(default_h, default_m)
+
+
+def _rango_reporte_fecha_hora(request):
+    """
+    Rango de fechas + hora local (TIME_ZONE del proyecto) para filtrar movimientos con marca de tiempo.
+
+    - Inicio: fecha_desde + hora_desde (inclusivo).
+    - Fin: fecha del último día del rango + hora_hasta, minuto inclusivo → fin exclusivo +1 min.
+    - Si **una sola fecha calendario** y hora_hasta < hora_desde, se interpreta como turno que **cruza
+      medianoche** (ej. 22:00–06:00): el fin cae en el día siguiente a esa hora.
+    """
+    fecha_desde, fecha_hasta = _resolver_rango_fechas(request)
+    tz = timezone.get_default_timezone()
+    hora_desde_raw = (request.GET.get('hora_desde') or '').strip()
+    hora_hasta_raw = (request.GET.get('hora_hasta') or '').strip()
+    hora_desde_str = hora_desde_raw or '00:00'
+    hora_hasta_str = hora_hasta_raw or '23:59'
+    t_desde = _parse_hora_hh_mm(hora_desde_str, 0, 0)
+    t_hasta = _parse_hora_hh_mm(hora_hasta_str, 23, 59)
+    naive_inicio = datetime.combine(fecha_desde, t_desde)
+    fecha_fin_naive = fecha_hasta
+    if fecha_hasta == fecha_desde and t_hasta < t_desde:
+        fecha_fin_naive = fecha_hasta + timedelta(days=1)
+    naive_fin_exclusivo = datetime.combine(fecha_fin_naive, t_hasta) + timedelta(minutes=1)
+    inicio = timezone.make_aware(naive_inicio, tz)
+    fin_exclusivo = timezone.make_aware(naive_fin_exclusivo, tz)
+    if fin_exclusivo <= inicio:
+        fin_exclusivo = inicio + timedelta(minutes=1)
+    filtro_hasta_display = f'{fecha_fin_naive.strftime("%d/%m/%Y")} {hora_hasta_str}'
+    return {
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'hora_desde': hora_desde_str,
+        'hora_hasta': hora_hasta_str,
+        'inicio_dt': inicio,
+        'fin_exclusivo_dt': fin_exclusivo,
+        'filtro_hora_mov_hasta_display': filtro_hasta_display,
+        'turno_cruza_medianoche': bool(fecha_hasta == fecha_desde and t_hasta < t_desde),
+        'time_zone_label': str(tz),
+    }
+
+
+def _q2(x):
+    """Decimal a 2 decimales (montos soles)."""
+    return (x or Decimal('0')).quantize(Decimal('0.01'))
+
+
+def _resumen_medios_turno(checkins_list, checkouts_list):
+    """
+    Suma depósitos (check-in) y cobros (check-out) del turno por medio, para caja / arqueo.
+
+    - Depósito con método vacío: se suma en **sin_metodo** (no se pierde frente al total real).
+    - Pago **mixto** sin desglose o con suma de partes &lt; total: el faltante va a **efectivo**
+      para que el total del turno coincida con lo cobrado/depositado.
+    """
+    acc = {
+        'efectivo': Decimal('0'),
+        'yape': Decimal('0'),
+        'tarjeta': Decimal('0'),
+        'transferencia': Decimal('0'),
+        'sin_metodo': Decimal('0'),
+    }
+
+    def add_dep(ci):
+        dep = _q2(ci.deposito)
+        if dep <= 0:
+            return
+        md = ci.metodo_deposito
+        if not md:
+            acc['sin_metodo'] += dep
+            return
+        if md == CheckIn.DEPOSITO_MIXTO:
+            e, ta, y, tr = (
+                _q2(ci.mixto_efectivo),
+                _q2(ci.mixto_tarjeta),
+                _q2(ci.mixto_yape),
+                _q2(ci.mixto_transferencia),
+            )
+            p_sum = _q2(e + ta + y + tr)
+            if p_sum <= 0:
+                acc['efectivo'] += dep
+            else:
+                acc['efectivo'] += e
+                acc['tarjeta'] += ta
+                acc['yape'] += y
+                acc['transferencia'] += tr
+                residual = _q2(dep - p_sum)
+                if residual > 0:
+                    acc['efectivo'] += residual
+        elif md == CheckIn.DEPOSITO_EFECTIVO:
+            acc['efectivo'] += dep
+        elif md == CheckIn.DEPOSITO_YAPE:
+            acc['yape'] += dep
+        elif md == CheckIn.DEPOSITO_TRANSFERENCIA:
+            acc['transferencia'] += dep
+        else:
+            acc['sin_metodo'] += dep
+
+    def add_co(co):
+        tot = _q2(co.total_pagado)
+        if tot <= 0:
+            return
+        mp = co.metodo_pago
+        if not mp:
+            acc['sin_metodo'] += tot
+            return
+        if mp == CheckOut.METODO_MIXTO:
+            e, ta, y, tr = (
+                _q2(co.mixto_efectivo),
+                _q2(co.mixto_tarjeta),
+                _q2(co.mixto_yape),
+                _q2(co.mixto_transferencia),
+            )
+            p_sum = _q2(e + ta + y + tr)
+            if p_sum <= 0:
+                acc['efectivo'] += tot
+            else:
+                acc['efectivo'] += e
+                acc['tarjeta'] += ta
+                acc['yape'] += y
+                acc['transferencia'] += tr
+                residual = _q2(tot - p_sum)
+                if residual > 0:
+                    acc['efectivo'] += residual
+        elif mp == CheckOut.METODO_EFECTIVO:
+            acc['efectivo'] += tot
+        elif mp == CheckOut.METODO_YAPE:
+            acc['yape'] += tot
+        elif mp == CheckOut.METODO_TARJETA:
+            acc['tarjeta'] += tot
+        elif mp == CheckOut.METODO_TRANSFERENCIA:
+            acc['transferencia'] += tot
+        else:
+            acc['sin_metodo'] += tot
+
+    for ci in checkins_list:
+        add_dep(ci)
+    for co in checkouts_list:
+        add_co(co)
+
+    acc['total'] = (
+        acc['efectivo']
+        + acc['yape']
+        + acc['tarjeta']
+        + acc['transferencia']
+        + acc['sin_metodo']
+    )
+    return acc
+
+
 def reporte_ocupacion(request):
     """Reporte de ocupación del hotel"""
-    fecha_desde, fecha_hasta = _resolver_rango_fechas(request)
+    rango = _rango_reporte_fecha_hora(request)
+    fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
     
     # Calcular ocupación por día
     ocupacion_por_dia = []
@@ -677,20 +879,23 @@ def reporte_ocupacion(request):
 
     checkins_detalle = list(
         CheckIn.objects.filter(
-            fecha_hora__date__gte=fecha_desde,
-            fecha_hora__date__lte=fecha_hasta,
+            fecha_hora__gte=rango['inicio_dt'],
+            fecha_hora__lt=rango['fin_exclusivo_dt'],
         )
         .select_related('reserva', 'reserva__huesped', 'reserva__habitacion')
         .order_by('-fecha_hora')
     )
     checkouts_detalle = list(
         CheckOut.objects.filter(
-            fecha_hora__date__gte=fecha_desde,
-            fecha_hora__date__lte=fecha_hasta,
+            fecha_hora__gte=rango['inicio_dt'],
+            fecha_hora__lt=rango['fin_exclusivo_dt'],
         )
         .select_related('reserva', 'reserva__huesped', 'reserva__habitacion', 'registrado_por')
         .order_by('-fecha_hora')
     )
+
+    filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
+    filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
 
     context = {
         'ocupacion_por_dia': ocupacion_por_dia,
@@ -698,6 +903,12 @@ def reporte_ocupacion(request):
         'fecha_hasta': fecha_hasta.isoformat(),
         'fecha_desde_fmt': fecha_desde.strftime('%d/%m/%Y'),
         'fecha_hasta_fmt': fecha_hasta.strftime('%d/%m/%Y'),
+        'hora_desde': rango['hora_desde'],
+        'hora_hasta': rango['hora_hasta'],
+        'filtro_hora_mov_desde': filtro_hora_mov_desde,
+        'filtro_hora_mov_hasta': filtro_hora_mov_hasta,
+        'turno_cruza_medianoche': rango['turno_cruza_medianoche'],
+        'time_zone_label': rango['time_zone_label'],
         'total_reservas': total_reservas,
         'ingresos_totales': ingresos_totales,
         'ocupacion_promedio': round(ocupacion_promedio, 2),
@@ -710,7 +921,8 @@ def reporte_ocupacion(request):
 
 def reporte_ingresos(request):
     """Reporte de ingresos"""
-    fecha_desde, fecha_hasta = _resolver_rango_fechas(request)
+    rango = _rango_reporte_fecha_hora(request)
+    fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
     
     # Ingresos por reservas (excluye canceladas)
     reservas = Reserva.objects.filter(
@@ -720,10 +932,10 @@ def reporte_ingresos(request):
     
     ingresos_reservas = reservas.aggregate(Sum('precio_total'))['precio_total__sum'] or 0
     
-    # Ingresos por check-outs (pagos reales)
+    # Ingresos por check-outs (pagos reales), filtrados por fecha/hora local del cobro
     checkouts = CheckOut.objects.filter(
-        fecha_hora__date__gte=fecha_desde,
-        fecha_hora__date__lte=fecha_hasta,
+        fecha_hora__gte=rango['inicio_dt'],
+        fecha_hora__lt=rango['fin_exclusivo_dt'],
     )
 
     ingresos_checkouts = checkouts.aggregate(Sum('total_pagado'))['total_pagado__sum'] or 0
@@ -735,12 +947,14 @@ def reporte_ingresos(request):
     )
     checkins_detalle = list(
         CheckIn.objects.filter(
-            fecha_hora__date__gte=fecha_desde,
-            fecha_hora__date__lte=fecha_hasta,
+            fecha_hora__gte=rango['inicio_dt'],
+            fecha_hora__lt=rango['fin_exclusivo_dt'],
         )
         .select_related('reserva', 'reserva__huesped', 'reserva__habitacion')
         .order_by('-fecha_hora')
     )
+
+    turno_medios = _resumen_medios_turno(checkins_detalle, checkouts_detalle)
 
     # Ingresos por método de pago (etiquetas legibles)
     metodo_pago_labels = dict(CheckOut.METODO_PAGO_CHOICES)
@@ -750,6 +964,20 @@ def reporte_ingresos(request):
     for row in ingresos_por_metodo:
         code = row.get('metodo_pago')
         row['metodo_display'] = metodo_pago_labels.get(code, code or '—')
+
+    mixto_sums = checkouts.filter(metodo_pago=CheckOut.METODO_MIXTO).aggregate(
+        mx_ef=Sum('mixto_efectivo'),
+        mx_ta=Sum('mixto_tarjeta'),
+        mx_ya=Sum('mixto_yape'),
+        mx_tr=Sum('mixto_transferencia'),
+    )
+    ingresos_mixto_desglose = [
+        {'label': 'Efectivo (dentro de pagos mixtos)', 'total': mixto_sums['mx_ef'] or 0},
+        {'label': 'Tarjeta (dentro de pagos mixtos)', 'total': mixto_sums['mx_ta'] or 0},
+        {'label': 'Yape (dentro de pagos mixtos)', 'total': mixto_sums['mx_ya'] or 0},
+        {'label': 'Transferencia (dentro de pagos mixtos)', 'total': mixto_sums['mx_tr'] or 0},
+    ]
+    ingresos_mixto_tiene_datos = any((row['total'] or 0) > 0 for row in ingresos_mixto_desglose)
     
     # Ingresos por tipo de habitación
     tipo_labels = dict(Habitacion.TIPO_CHOICES)
@@ -765,8 +993,8 @@ def reporte_ingresos(request):
 
     depositos_checkin = (
         CheckIn.objects.filter(
-            fecha_hora__date__gte=fecha_desde,
-            fecha_hora__date__lte=fecha_hasta,
+            fecha_hora__gte=rango['inicio_dt'],
+            fecha_hora__lt=rango['fin_exclusivo_dt'],
             deposito__gt=0,
         ).aggregate(Sum('deposito'))['deposito__sum']
         or 0
@@ -775,8 +1003,8 @@ def reporte_ingresos(request):
     metodo_dep_labels = dict(CheckIn.METODO_DEPOSITO_CHOICES)
     depositos_por_metodo = list(
         CheckIn.objects.filter(
-            fecha_hora__date__gte=fecha_desde,
-            fecha_hora__date__lte=fecha_hasta,
+            fecha_hora__gte=rango['inicio_dt'],
+            fecha_hora__lt=rango['fin_exclusivo_dt'],
             deposito__gt=0,
             metodo_deposito__isnull=False,
         )
@@ -788,21 +1016,145 @@ def reporte_ingresos(request):
         code = row.get('metodo_deposito')
         row['metodo_display'] = metodo_dep_labels.get(code, code or '—')
 
+    dep_mix = CheckIn.objects.filter(
+        fecha_hora__gte=rango['inicio_dt'],
+        fecha_hora__lt=rango['fin_exclusivo_dt'],
+        metodo_deposito=CheckIn.DEPOSITO_MIXTO,
+    ).aggregate(
+        mx_ef=Sum('mixto_efectivo'),
+        mx_ta=Sum('mixto_tarjeta'),
+        mx_ya=Sum('mixto_yape'),
+        mx_tr=Sum('mixto_transferencia'),
+    )
+    depositos_mixto_desglose = [
+        {'label': 'Efectivo (dentro de depósitos mixtos)', 'total': dep_mix['mx_ef'] or 0},
+        {'label': 'Tarjeta (dentro de depósitos mixtos)', 'total': dep_mix['mx_ta'] or 0},
+        {'label': 'Yape (dentro de depósitos mixtos)', 'total': dep_mix['mx_ya'] or 0},
+        {'label': 'Transferencia (dentro de depósitos mixtos)', 'total': dep_mix['mx_tr'] or 0},
+    ]
+    depositos_mixto_tiene_datos = any((row['total'] or 0) > 0 for row in depositos_mixto_desglose)
+
+    filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
+    filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
+
     context = {
         'fecha_desde': fecha_desde.isoformat(),
         'fecha_hasta': fecha_hasta.isoformat(),
         'fecha_desde_fmt': fecha_desde.strftime('%d/%m/%Y'),
         'fecha_hasta_fmt': fecha_hasta.strftime('%d/%m/%Y'),
+        'hora_desde': rango['hora_desde'],
+        'hora_hasta': rango['hora_hasta'],
+        'filtro_hora_mov_desde': filtro_hora_mov_desde,
+        'filtro_hora_mov_hasta': filtro_hora_mov_hasta,
+        'turno_medios': turno_medios,
+        'turno_cruza_medianoche': rango['turno_cruza_medianoche'],
+        'time_zone_label': rango['time_zone_label'],
         'ingresos_reservas': ingresos_reservas,
         'ingresos_checkouts': ingresos_checkouts,
         'depositos_checkin': depositos_checkin,
         'depositos_por_metodo': depositos_por_metodo,
+        'depositos_mixto_desglose': depositos_mixto_desglose,
+        'depositos_mixto_tiene_datos': depositos_mixto_tiene_datos,
         'ingresos_por_metodo': ingresos_por_metodo,
+        'ingresos_mixto_desglose': ingresos_mixto_desglose,
+        'ingresos_mixto_tiene_datos': ingresos_mixto_tiene_datos,
         'ingresos_por_tipo': ingresos_por_tipo,
         'checkins_detalle': checkins_detalle,
         'checkouts_detalle': checkouts_detalle,
     }
     return render(request, 'hotel/reportes/ingresos.html', context)
+
+
+def _filas_reporte_registro(request):
+    """
+    Registros por fecha/hora real de check-in (zona del hotel), orden cronológico.
+    Incluye documento, nombre, nacionalidad, procedencia, habitación y salida si hay check-out.
+    """
+    rango = _rango_reporte_fecha_hora(request)
+    inicio = rango['inicio_dt']
+    fin = rango['fin_exclusivo_dt']
+    checkins = (
+        CheckIn.objects.filter(fecha_hora__gte=inicio, fecha_hora__lt=fin)
+        .exclude(reserva__estado=Reserva.ESTADO_CANCELADA)
+        .select_related('reserva', 'reserva__huesped', 'reserva__habitacion')
+        .order_by('fecha_hora')
+    )
+    fmt = '%d/%m/%Y %H:%M'
+    filas = []
+    for i, ci in enumerate(checkins, start=1):
+        r = ci.reserva
+        h = r.huesped
+        co = _checkout_reserva(r)
+        fi = timezone.localtime(ci.fecha_hora)
+        fs = timezone.localtime(co.fecha_hora) if co else None
+        nombre_registro = f'{h.apellidos} {h.nombre}'.strip()
+        filas.append(
+            {
+                'orden': i,
+                'entrada': fi.strftime(fmt),
+                'salida': fs.strftime(fmt) if fs else '— (sin check-out)',
+                'documento': h.documento_identidad,
+                'nombre_completo': nombre_registro or h.nombre_completo,
+                'nacionalidad': h.nacionalidad or '—',
+                'procedencia': h.lugar_procedencia or '—',
+                'habitacion': str(r.habitacion.numero),
+                'num_huespedes': r.numero_huespedes,
+                'reserva_id': r.id,
+            }
+        )
+    return rango, filas
+
+
+def reporte_registro(request):
+    """Reporte de registro (check-in / check-out): vista previa y PDF."""
+    rango, filas = _filas_reporte_registro(request)
+    fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
+    filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
+    filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
+    hotel_nombre = getattr(getattr(request, 'tenant', None), 'name', None) or 'Hotel'
+    context = {
+        'filas': filas,
+        'total_registros': len(filas),
+        'fecha_desde': fecha_desde.isoformat(),
+        'fecha_hasta': fecha_hasta.isoformat(),
+        'fecha_desde_fmt': fecha_desde.strftime('%d/%m/%Y'),
+        'fecha_hasta_fmt': fecha_hasta.strftime('%d/%m/%Y'),
+        'hora_desde': rango['hora_desde'],
+        'hora_hasta': rango['hora_hasta'],
+        'filtro_hora_mov_desde': filtro_hora_mov_desde,
+        'filtro_hora_mov_hasta': filtro_hora_mov_hasta,
+        'turno_cruza_medianoche': rango['turno_cruza_medianoche'],
+        'time_zone_label': rango['time_zone_label'],
+        'hotel_nombre': hotel_nombre,
+        'querystring': request.GET.urlencode(),
+    }
+    return render(request, 'hotel/reportes/registro.html', context)
+
+
+def reporte_registro_pdf(request):
+    """Descarga PDF del registro (mismos filtros GET que la vista HTML)."""
+    rango, filas = _filas_reporte_registro(request)
+    fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
+    hotel_nombre = getattr(getattr(request, 'tenant', None), 'name', None) or 'Hotel'
+    periodo = (
+        f'Período de registro (check-in): del {fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]} '
+        f'al {rango["filtro_hora_mov_hasta_display"]} — Zona horaria: {rango["time_zone_label"]}'
+    )
+    ahora = timezone.localtime(timezone.now())
+    pie = (
+        f'Documento generado el {ahora.strftime("%d/%m/%Y %H:%M")} desde el sistema hotelero. '
+        f'Total de registros: {len(filas)}.'
+    )
+    pdf_bytes = build_registro_pdf(
+        titulo_hotel=hotel_nombre,
+        subtitulo_periodo=periodo,
+        pie_generacion=pie,
+        filas=filas,
+    )
+    fname = f'registro-{fecha_desde.isoformat()}-{fecha_hasta.isoformat()}.pdf'
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return response
 
 
 # ========== NUEVAS FUNCIONALIDADES DE RECEPCIÓN ==========
@@ -811,10 +1163,10 @@ def checkin_rapido(request):
     """Lista de check-ins pendientes con acción rápida"""
     hoy = timezone.localdate()
     
-    # Check-ins pendientes de hoy
+    # Check-ins pendientes de hoy (pendiente o confirmada; al crear reserva suele quedar pendiente)
     checkins_pendientes = (
         Reserva.objects.filter(
-            estado=Reserva.ESTADO_CONFIRMADA,
+            estado__in=_ESTADOS_RESERVA_CHECKIN_PENDIENTE,
             fecha_entrada__lte=hoy,
             fecha_salida__gt=hoy,
         )
@@ -827,38 +1179,80 @@ def checkin_rapido(request):
     # Si hay un ID específico, hacer check-in directo
     reserva_id = request.GET.get('reserva_id')
     if reserva_id:
-        reserva = get_object_or_404(Reserva, id=reserva_id, estado=Reserva.ESTADO_CONFIRMADA)
+        reserva = get_object_or_404(Reserva, id=reserva_id, estado__in=_ESTADOS_RESERVA_CHECKIN_PENDIENTE)
         
         if request.method == 'POST':
-            from decimal import Decimal
+            from decimal import Decimal, InvalidOperation
 
             documentos_recibidos = request.POST.get('documentos_recibidos') == 'on'
             deposito_str = request.POST.get('deposito', '0') or '0'
             metodo_deposito = request.POST.get('metodo_deposito', '').strip()
+            ctx_err = {
+                'reserva': reserva,
+                'hacer_checkin': True,
+                'empleado_registrado': _nombre_empleado_checkin(request.user),
+                'posted': request.POST,
+            }
             try:
                 deposito = Decimal(str(deposito_str))
-            except Exception:
+            except (InvalidOperation, ValueError, TypeError):
                 messages.error(request, 'Depósito no válido.')
-                return redirect(f'{reverse("checkin_rapido")}?reserva_id={reserva.id}')
-            metodos_validos = {CheckIn.DEPOSITO_EFECTIVO, CheckIn.DEPOSITO_YAPE, CheckIn.DEPOSITO_TRANSFERENCIA}
+                return render(request, 'hotel/recepcion/checkin_rapido.html', ctx_err)
+            metodos_validos = {
+                CheckIn.DEPOSITO_EFECTIVO,
+                CheckIn.DEPOSITO_YAPE,
+                CheckIn.DEPOSITO_TRANSFERENCIA,
+                CheckIn.DEPOSITO_MIXTO,
+            }
             if deposito > 0 and metodo_deposito not in metodos_validos:
-                messages.error(request, 'Si hay depósito, indique si fue por Yape, efectivo o transferencia.')
-                return redirect(f'{reverse("checkin_rapido")}?reserva_id={reserva.id}')
+                messages.error(
+                    request,
+                    'Si hay depósito, indique un método válido (efectivo, Yape, transferencia o mixto).',
+                )
+                return render(request, 'hotel/recepcion/checkin_rapido.html', ctx_err)
 
-            CheckIn.objects.create(
+            dep_final = max(Decimal('0'), deposito)
+            metodo_val = metodo_deposito if dep_final > 0 else None
+
+            mixto_e = mixto_t = mixto_y = mixto_tr = Decimal('0')
+            if metodo_val == CheckIn.DEPOSITO_MIXTO:
+                try:
+                    mixto_e = Decimal(str(request.POST.get('mixto_efectivo') or '0').strip() or '0')
+                    mixto_t = Decimal(str(request.POST.get('mixto_tarjeta') or '0').strip() or '0')
+                    mixto_y = Decimal(str(request.POST.get('mixto_yape') or '0').strip() or '0')
+                    mixto_tr = Decimal(str(request.POST.get('mixto_transferencia') or '0').strip() or '0')
+                except (InvalidOperation, ValueError, TypeError):
+                    messages.error(
+                        request,
+                        'En depósito mixto, ingrese montos válidos para efectivo, tarjeta, Yape y transferencia.',
+                    )
+                    return render(request, 'hotel/recepcion/checkin_rapido.html', ctx_err)
+
+            checkin = CheckIn(
                 reserva=reserva,
                 fecha_hora=timezone.now(),
                 empleado=_nombre_empleado_checkin(request.user),
                 documentos_recibidos=documentos_recibidos,
-                deposito=deposito,
-                metodo_deposito=metodo_deposito if deposito > 0 else None,
+                deposito=dep_final,
+                metodo_deposito=metodo_val,
+                mixto_efectivo=mixto_e if metodo_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                mixto_tarjeta=mixto_t if metodo_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                mixto_yape=mixto_y if metodo_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                mixto_transferencia=mixto_tr if metodo_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
             )
-            
+            try:
+                checkin.full_clean()
+            except ValidationError as exc:
+                msg = '; '.join(getattr(exc, 'messages', []) or [str(exc)])
+                messages.error(request, msg)
+                return render(request, 'hotel/recepcion/checkin_rapido.html', ctx_err)
+            checkin.save()
+
             reserva.estado = Reserva.ESTADO_CHECKIN
             reserva.save()
             reserva.habitacion.estado = Habitacion.ESTADO_OCUPADA
             reserva.habitacion.save()
-            
+
             messages.success(request, f'Check-in realizado para Reserva #{reserva.id}.')
             return redirect('checkin_rapido')
         
@@ -895,6 +1289,10 @@ def checkout_rapido(request):
         .select_related('huesped', 'habitacion', 'checkin')
         .order_by('prioridad_salida', 'fecha_salida', 'fecha_hora_salida_prevista', 'id')
     )
+    for reserva_item in checkouts_pendientes:
+        dep = reserva_item.checkin.deposito if getattr(reserva_item, 'checkin', None) else 0
+        saldo = reserva_item.precio_total - dep
+        reserva_item.saldo_checkout = saldo if saldo > 0 else 0
     
     # Si hay un ID específico, hacer check-out directo
     reserva_id = request.GET.get('reserva_id')
@@ -909,29 +1307,120 @@ def checkout_rapido(request):
             from decimal import Decimal
             total_pagado_str = request.POST.get('total_pagado', str(reserva.precio_total)) or str(reserva.precio_total)
             metodo_pago = request.POST.get('metodo_pago', 'efectivo')
-            calificacion_str = request.POST.get('calificacion') or None
             danos_observados = request.POST.get('danos_observados', '').strip()
+            metodos_validos = {m[0] for m in CheckOut.METODO_PAGO_CHOICES}
             
             # Convertir tipos
             try:
                 total_pagado = Decimal(str(total_pagado_str))
-                calificacion = int(calificacion_str) if calificacion_str and calificacion_str.isdigit() else None
             except (ValueError, TypeError):
-                messages.error(request, 'Error en los datos ingresados. Por favor verifique los valores.')
-                return redirect('checkout_rapido')
+                messages.error(request, 'No pudimos guardar el check-out: revisa el monto cobrado.')
+                deposito_actual = (_checkin_reserva(reserva).deposito if _checkin_reserva(reserva) else 0)
+                total_base = float(reserva.precio_total) - float(deposito_actual)
+                return render(
+                    request,
+                    'hotel/recepcion/checkout_rapido.html',
+                    {
+                        'reserva': reserva,
+                        'deposito': deposito_actual,
+                        'total_a_pagar': total_base,
+                        'hacer_checkout': True,
+                        'posted': request.POST,
+                    },
+                )
+            if total_pagado < 0:
+                messages.error(request, 'El monto cobrado no puede ser negativo.')
+                deposito_actual = (_checkin_reserva(reserva).deposito if _checkin_reserva(reserva) else 0)
+                total_base = float(reserva.precio_total) - float(deposito_actual)
+                return render(
+                    request,
+                    'hotel/recepcion/checkout_rapido.html',
+                    {
+                        'reserva': reserva,
+                        'deposito': deposito_actual,
+                        'total_a_pagar': total_base,
+                        'hacer_checkout': True,
+                        'posted': request.POST,
+                    },
+                )
+            if metodo_pago not in metodos_validos:
+                messages.error(request, 'Elige un método de pago válido para continuar.')
+                deposito_actual = (_checkin_reserva(reserva).deposito if _checkin_reserva(reserva) else 0)
+                total_base = float(reserva.precio_total) - float(deposito_actual)
+                return render(
+                    request,
+                    'hotel/recepcion/checkout_rapido.html',
+                    {
+                        'reserva': reserva,
+                        'deposito': deposito_actual,
+                        'total_a_pagar': total_base,
+                        'hacer_checkout': True,
+                        'posted': request.POST,
+                    },
+                )
             
             # El formulario envía el monto a cobrar en check-out (saldo), ya neto del depósito.
             total_cobrado = max(Decimal('0'), total_pagado)
 
-            CheckOut.objects.create(
+            from decimal import InvalidOperation
+
+            mixto_e = mixto_t = mixto_y = mixto_tr = Decimal('0')
+            if metodo_pago == CheckOut.METODO_MIXTO:
+                try:
+                    mixto_e = Decimal(str(request.POST.get('mixto_efectivo') or '0').strip() or '0')
+                    mixto_t = Decimal(str(request.POST.get('mixto_tarjeta') or '0').strip() or '0')
+                    mixto_y = Decimal(str(request.POST.get('mixto_yape') or '0').strip() or '0')
+                    mixto_tr = Decimal(str(request.POST.get('mixto_transferencia') or '0').strip() or '0')
+                except (InvalidOperation, ValueError, TypeError):
+                    messages.error(
+                        request,
+                        'En pago mixto, ingrese montos válidos para efectivo, tarjeta, Yape y transferencia.',
+                    )
+                    deposito_actual = (_checkin_reserva(reserva).deposito if _checkin_reserva(reserva) else 0)
+                    total_base = float(reserva.precio_total) - float(deposito_actual)
+                    return render(
+                        request,
+                        'hotel/recepcion/checkout_rapido.html',
+                        {
+                            'reserva': reserva,
+                            'deposito': deposito_actual,
+                            'total_a_pagar': total_base,
+                            'hacer_checkout': True,
+                            'posted': request.POST,
+                        },
+                    )
+
+            checkout = CheckOut(
                 reserva=reserva,
                 fecha_hora=timezone.now(),
                 registrado_por=request.user,
                 total_pagado=total_cobrado,
                 metodo_pago=metodo_pago,
-                calificacion=calificacion,
+                mixto_efectivo=mixto_e if metodo_pago == CheckOut.METODO_MIXTO else Decimal('0'),
+                mixto_tarjeta=mixto_t if metodo_pago == CheckOut.METODO_MIXTO else Decimal('0'),
+                mixto_yape=mixto_y if metodo_pago == CheckOut.METODO_MIXTO else Decimal('0'),
+                mixto_transferencia=mixto_tr if metodo_pago == CheckOut.METODO_MIXTO else Decimal('0'),
                 danos_observados=danos_observados,
             )
+            try:
+                checkout.full_clean()
+            except ValidationError as exc:
+                msg = '; '.join(getattr(exc, 'messages', []) or [str(exc)])
+                messages.error(request, msg)
+                deposito_actual = (_checkin_reserva(reserva).deposito if _checkin_reserva(reserva) else 0)
+                total_base = float(reserva.precio_total) - float(deposito_actual)
+                return render(
+                    request,
+                    'hotel/recepcion/checkout_rapido.html',
+                    {
+                        'reserva': reserva,
+                        'deposito': deposito_actual,
+                        'total_a_pagar': total_base,
+                        'hacer_checkout': True,
+                        'posted': request.POST,
+                    },
+                )
+            checkout.save()
             
             reserva.estado = Reserva.ESTADO_CHECKOUT
             reserva.save()
@@ -1100,7 +1589,7 @@ def walkin(request):
         metodo_deposito = request.POST.get('metodo_deposito', '').strip()
 
         try:
-            from decimal import Decimal
+            from decimal import Decimal, InvalidOperation
 
             ahora = timezone.localtime(timezone.now())
             fecha_entrada = ahora.date()
@@ -1115,23 +1604,25 @@ def walkin(request):
                 messages.error(request, 'Complete DNI, nombres, apellidos y lugar de procedencia del huésped.')
                 return redirect('walkin')
 
-            # Buscar o crear huésped
-            huesped, created = Huesped.objects.get_or_create(
-                documento_identidad=documento,
-                defaults={
-                    'nombre': nombre,
-                    'apellidos': apellidos,
-                    'lugar_procedencia': lugar_procedencia,
-                    'email': '',
-                    'telefono': '',
-                },
-            )
-            if not created:
+            # Walk-in: alta en recepción (no exige huésped previo en administración).
+            huesped = Huesped.objects.filter(documento_identidad__iexact=documento).first()
+            if huesped:
                 huesped.nombre = nombre
                 huesped.apellidos = apellidos
                 huesped.lugar_procedencia = lugar_procedencia
-                huesped.save(update_fields=['nombre', 'apellidos', 'lugar_procedencia', 'fecha_actualizacion'])
-            
+                huesped.save(
+                    update_fields=['nombre', 'apellidos', 'lugar_procedencia', 'fecha_actualizacion']
+                )
+            else:
+                huesped = Huesped.objects.create(
+                    documento_identidad=documento,
+                    nombre=nombre,
+                    apellidos=apellidos,
+                    lugar_procedencia=lugar_procedencia,
+                    email='',
+                    telefono='',
+                )
+
             habitacion = get_object_or_404(Habitacion, id=habitacion_id)
             if habitacion.estado != Habitacion.ESTADO_DISPONIBLE:
                 messages.error(request, 'La habitación ya no está disponible. Elija otra e intente de nuevo.')
@@ -1142,11 +1633,33 @@ def walkin(request):
                 messages.error(request, f'El número de huéspedes ({numero_huespedes}) excede la capacidad de la habitación ({habitacion.capacidad}).')
                 return redirect('walkin')
 
-            metodos_validos = {CheckIn.DEPOSITO_EFECTIVO, CheckIn.DEPOSITO_YAPE, CheckIn.DEPOSITO_TRANSFERENCIA}
+            metodos_validos = {
+                CheckIn.DEPOSITO_EFECTIVO,
+                CheckIn.DEPOSITO_YAPE,
+                CheckIn.DEPOSITO_TRANSFERENCIA,
+                CheckIn.DEPOSITO_MIXTO,
+            }
             if deposito > 0 and metodo_deposito not in metodos_validos:
-                messages.error(request, 'Si hay depósito, indique si fue por Yape, efectivo o transferencia.')
+                messages.error(
+                    request,
+                    'Si hay depósito, indique un método válido (efectivo, Yape, transferencia o mixto).',
+                )
                 return redirect('walkin')
             metodo_deposito_val = metodo_deposito if deposito > 0 else None
+
+            mixto_e = mixto_t = mixto_y = mixto_tr = Decimal('0')
+            if metodo_deposito_val == CheckIn.DEPOSITO_MIXTO:
+                try:
+                    mixto_e = Decimal(str(request.POST.get('mixto_efectivo') or '0').strip() or '0')
+                    mixto_t = Decimal(str(request.POST.get('mixto_tarjeta') or '0').strip() or '0')
+                    mixto_y = Decimal(str(request.POST.get('mixto_yape') or '0').strip() or '0')
+                    mixto_tr = Decimal(str(request.POST.get('mixto_transferencia') or '0').strip() or '0')
+                except (InvalidOperation, ValueError, TypeError):
+                    messages.error(
+                        request,
+                        'En depósito mixto, ingrese montos válidos para efectivo, tarjeta, Yape y transferencia.',
+                    )
+                    return redirect('walkin')
 
             if tipo_estadia == 'horas':
                 try:
@@ -1199,20 +1712,30 @@ def walkin(request):
                 create_kwargs['precio_total'] = precio_total
             if request.user.is_authenticated:
                 create_kwargs['creado_por'] = request.user
-            reserva = Reserva.objects.create(**create_kwargs)
-            
-            CheckIn.objects.create(
-                reserva=reserva,
-                fecha_hora=timezone.now(),
-                empleado=_nombre_empleado_checkin(request.user),
-                documentos_recibidos=documentos_recibidos,
-                deposito=deposito,
-                metodo_deposito=metodo_deposito_val,
-            )
-            
-            habitacion.estado = Habitacion.ESTADO_OCUPADA
-            habitacion.save()
-            
+            try:
+                with transaction.atomic():
+                    reserva = Reserva.objects.create(**create_kwargs)
+                    checkin = CheckIn(
+                        reserva=reserva,
+                        fecha_hora=timezone.now(),
+                        empleado=_nombre_empleado_checkin(request.user),
+                        documentos_recibidos=documentos_recibidos,
+                        deposito=deposito,
+                        metodo_deposito=metodo_deposito_val,
+                        mixto_efectivo=mixto_e if metodo_deposito_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                        mixto_tarjeta=mixto_t if metodo_deposito_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                        mixto_yape=mixto_y if metodo_deposito_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                        mixto_transferencia=mixto_tr if metodo_deposito_val == CheckIn.DEPOSITO_MIXTO else Decimal('0'),
+                    )
+                    checkin.full_clean()
+                    checkin.save()
+                    habitacion.estado = Habitacion.ESTADO_OCUPADA
+                    habitacion.save(update_fields=['estado'])
+            except ValidationError as exc:
+                msg = '; '.join(getattr(exc, 'messages', []) or [str(exc)])
+                messages.error(request, msg)
+                return redirect('walkin')
+
             messages.success(
                 request,
                 f'Walk-in registrado (reserva #{reserva.id}). Entrada: {fecha_entrada.strftime("%d/%m/%Y")}, '
@@ -1221,10 +1744,11 @@ def walkin(request):
             return redirect('detalle_reserva', reserva_id=reserva.id)
             
         except ValueError as e:
-            messages.error(request, f'Error en los datos ingresados: {str(e)}')
+            messages.error(request, f'Revisa los datos ingresados: {str(e)}')
             return redirect('walkin')
         except Exception as e:
-            messages.error(request, f'Error: {str(e)}')
+            logger.exception('Error inesperado al registrar walk-in')
+            messages.error(request, 'No pudimos registrar el walk-in. Intenta nuevamente o pide apoyo al administrador.')
             return redirect('walkin')
     
     # GET: Mostrar formulario
@@ -1258,9 +1782,12 @@ def calendario_ocupacion(request):
     else:
         fecha_fin = datetime(año, mes + 1, 1).date() - timedelta(days=1)
     
-    reservas = Reserva.objects.filter(
-        Q(fecha_entrada__lte=fecha_fin, fecha_salida__gte=fecha_inicio)
-    ).select_related('huesped', 'habitacion')
+    reservas = (
+        Reserva.objects.filter(Q(fecha_entrada__lte=fecha_fin, fecha_salida__gte=fecha_inicio))
+        .exclude(estado=Reserva.ESTADO_CANCELADA)
+        .exclude(estado=Reserva.ESTADO_CHECKOUT)
+        .select_related('huesped', 'habitacion')
+    )
     
     # Organizar por día
     ocupacion_por_dia = {}
@@ -1285,9 +1812,35 @@ def calendario_ocupacion(request):
     return render(request, 'hotel/recepcion/calendario.html', context)
 
 
+def lista_limpieza(request):
+    """Habitaciones en estado «En limpieza» (recepción, limpieza y administrador)."""
+    habitaciones = Habitacion.objects.filter(estado=Habitacion.ESTADO_LIMPIEZA).order_by('numero')
+    return render(request, 'hotel/recepcion/limpieza.html', {'habitaciones': habitaciones})
+
+
+@require_http_methods(['POST'])
+def marcar_limpieza_terminada(request, habitacion_id):
+    """Marca la habitación como disponible tras terminar la limpieza."""
+    habitacion = get_object_or_404(Habitacion, id=habitacion_id)
+    role = request.membership.role
+    if role not in (Membership.ROLE_ADMIN, Membership.ROLE_LIMPIEZA, Membership.ROLE_RECEPCION):
+        messages.error(request, 'No tienes permiso para esta acción.')
+        return redirect('lista_limpieza')
+    if habitacion.estado != Habitacion.ESTADO_LIMPIEZA:
+        messages.warning(request, 'La habitación ya no está en limpieza.')
+        return redirect('lista_limpieza')
+    habitacion.estado = Habitacion.ESTADO_DISPONIBLE
+    habitacion.save(update_fields=['estado'])
+    messages.success(
+        request,
+        f'Habitación {habitacion.numero} lista: marcada como disponible.',
+    )
+    return redirect('lista_limpieza')
+
+
 @require_http_methods(['POST'])
 def actualizar_estado_habitacion(request, habitacion_id):
-    """Cambio de estado de habitación (admin: cualquier estado; limpieza: sin ocupada/reservada)."""
+    """Cambio de estado de habitación (admin y recepción: cualquier estado; limpieza: sin ocupada/reservada)."""
     habitacion = get_object_or_404(Habitacion, id=habitacion_id)
     role = request.membership.role
     nuevo = request.POST.get('estado')
@@ -1303,7 +1856,7 @@ def actualizar_estado_habitacion(request, habitacion_id):
         if nuevo in (Habitacion.ESTADO_OCUPADA, Habitacion.ESTADO_RESERVADA):
             messages.error(request, 'Tu rol no puede dejar la habitación en ese estado.')
             return redirect('detalle_habitacion', habitacion_id=habitacion.id)
-    elif role != Membership.ROLE_ADMIN:
+    elif role not in (Membership.ROLE_ADMIN, Membership.ROLE_RECEPCION):
         messages.error(request, 'No tienes permiso para esta acción.')
         return redirect('detalle_habitacion', habitacion_id=habitacion.id)
 
