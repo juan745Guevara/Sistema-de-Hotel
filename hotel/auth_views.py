@@ -176,33 +176,11 @@ def accounts_login(request):
 
 @require_http_methods(['GET', 'POST'])
 def accounts_signup(request):
-    if request.user.is_authenticated:
-        return redirect('index')
-    form = SignupForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        username = form.cleaned_data['username']
-        user = User.objects.create_user(
-            username=username,
-            email='',
-            password=form.cleaned_data['password1'],
-        )
-        tenant = Tenant(name=form.cleaned_data['hotel_name'])
-        tenant.save()
-        Membership.objects.create(
-            user=user,
-            tenant=tenant,
-            role=Membership.ROLE_ADMIN,
-        )
-        login(request, user)
-        request.session['active_tenant_id'] = tenant.pk
-        request.session.pop(SESSION_LOGIN_TENANT_ID, None)
-        messages.success(
-            request,
-            f'Cuenta y hotel creados. Tu usuario es «{username}» y el identificador del hotel «{tenant.slug}» '
-            f'(para el ingreso en dos pasos). ¡Bienvenido!',
-        )
-        return redirect('index')
-    return render(request, 'hotel/accounts/signup.html', {'form': form})
+    messages.info(
+        request,
+        'La creación de cuentas/hoteles desde la web está deshabilitada. Usa la consola del servidor.',
+    )
+    return redirect('accounts_hotel_identify')
 
 
 @require_http_methods(['GET', 'POST'])

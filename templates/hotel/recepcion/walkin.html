@@ -28,11 +28,34 @@
                     
                     <h5 class="mb-3">Datos del huésped</h5>
                     <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label d-block">Tipo de documento <span class="text-danger">*</span></label>
+                            <div class="d-flex flex-wrap gap-2" role="group" aria-label="Tipo de documento">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_documento" id="td_dni" value="dni" checked>
+                                    <label class="form-check-label" for="td_dni">DNI (peruano)</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_documento" id="td_ce" value="carnet_extranjeria">
+                                    <label class="form-check-label" for="td_ce">Carné de extranjería (CE)</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_documento" id="td_pas" value="pasaporte">
+                                    <label class="form-check-label" for="td_pas">Pasaporte</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_documento" id="td_otro" value="otro">
+                                    <label class="form-check-label" for="td_otro">Otro</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">DNI <span class="text-danger">*</span></label>
+                            <label class="form-label" id="walkin_doc_label">Número de DNI <span class="text-danger">*</span></label>
                             <input type="text" name="documento_identidad" id="documento_identidad" class="form-control"
-                                   maxlength="50" required autofocus placeholder="Ej. 12345678" autocomplete="off" inputmode="numeric">
-                            <small class="text-muted d-block mt-1">Si el DNI es nuevo, se crea el huésped al guardar; si ya existía, se actualizan nombre y procedencia.</small>
+                                   maxlength="50" required autofocus placeholder="Ej. 40123456" autocomplete="off" inputmode="numeric">
+                            <small class="text-muted d-block mt-1" id="walkin_doc_help">DNI: 8 dígitos. Si el documento ya existía con el mismo tipo, se actualizan nombre y procedencia.</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nombres <span class="text-danger">*</span></label>
@@ -77,7 +100,10 @@
                             <input type="radio" class="btn-check" name="tipo_estadia" id="tipo_horas" value="horas" autocomplete="off">
                             <label class="btn btn-outline-primary" for="tipo_horas">Por horas</label>
                         </div>
-                        <small class="text-muted d-block mt-1">Por horas: se guarda la hora prevista de salida (p. ej. 3 h) y el total sugerido (proporcional al día, mínimo 15 % del precio por noche) o el monto que acuerde con el huésped.</small>
+                        <small class="text-muted d-block mt-1">
+                            <strong>Por noches:</strong> la salida máxima es el <strong>día de salida</strong> (entrada + número de noches) hasta las <strong>12:00 mediodía</strong>. Ej.: 1 noche = mañana al mediodía; 3 noches = tres días después al mediodía.
+                            <strong>Por horas:</strong> se guarda la hora prevista de salida (p. ej. 3 h) y el total sugerido (proporcional al día, mínimo 15 % del precio por noche) o el monto acordado.
+                        </small>
                     </div>
                     <div class="row mb-3" id="walkin-bloque-noches">
                         <div class="col-md-4">
@@ -161,6 +187,41 @@
     </div>
 </div>
 <script>
+(function () {
+    const radios = document.querySelectorAll('input[name="tipo_documento"]');
+    const inp = document.getElementById('documento_identidad');
+    const lbl = document.getElementById('walkin_doc_label');
+    const help = document.getElementById('walkin_doc_help');
+    if (radios.length && inp && lbl) {
+        function syncDocTipo() {
+            const v = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
+            if (v === 'dni') {
+                lbl.innerHTML = 'Número de DNI <span class="text-danger">*</span>';
+                inp.placeholder = 'Ej. 40123456';
+                inp.setAttribute('inputmode', 'numeric');
+                if (help) help.textContent = 'DNI peruano: exactamente 8 dígitos.';
+            } else if (v === 'carnet_extranjeria') {
+                lbl.innerHTML = 'Número de carné de extranjería (CE) <span class="text-danger">*</span>';
+                inp.placeholder = 'Ej. 001-123456';
+                inp.removeAttribute('inputmode');
+                if (help) help.textContent = 'CE u otro formato según Migraciones; letras, números, guiones o puntos (4–50 caracteres).';
+            } else if (v === 'pasaporte') {
+                lbl.innerHTML = 'Número de pasaporte <span class="text-danger">*</span>';
+                inp.placeholder = 'Ej. AB1234567';
+                inp.removeAttribute('inputmode');
+                if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
+            } else {
+                lbl.innerHTML = 'Número de documento <span class="text-danger">*</span>';
+                inp.placeholder = 'Documento oficial';
+                inp.removeAttribute('inputmode');
+                if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
+            }
+        }
+        radios.forEach(function (r) { r.addEventListener('change', syncDocTipo); });
+        syncDocTipo();
+    }
+})();
+
 (function () {
     var rN = document.getElementById('tipo_noches');
     var rH = document.getElementById('tipo_horas');

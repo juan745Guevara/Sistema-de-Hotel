@@ -9,6 +9,7 @@ Este módulo contiene todos los modelos de datos del sistema:
 - CheckOut: Registro de check-out de una reserva
 """
 
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.conf import settings
@@ -238,6 +239,18 @@ class Huesped(models.Model):
     del huésped para mejorar el servicio.
     """
 
+    TIPO_DOC_DNI = 'dni'
+    TIPO_DOC_CARNET_EXTRANJERIA = 'carnet_extranjeria'
+    TIPO_DOC_PASAPORTE = 'pasaporte'
+    TIPO_DOC_OTRO = 'otro'
+
+    TIPO_DOCUMENTO_CHOICES = [
+        (TIPO_DOC_DNI, 'DNI (Perú)'),
+        (TIPO_DOC_CARNET_EXTRANJERIA, 'Carné de extranjería (CE)'),
+        (TIPO_DOC_PASAPORTE, 'Pasaporte'),
+        (TIPO_DOC_OTRO, 'Otro documento'),
+    ]
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -259,10 +272,18 @@ class Huesped(models.Model):
         help_text='Apellidos del huésped'
     )
 
+    tipo_documento = models.CharField(
+        max_length=30,
+        choices=TIPO_DOCUMENTO_CHOICES,
+        default=TIPO_DOC_DNI,
+        verbose_name='Tipo de documento',
+        help_text='DNI para peruanos; CE, pasaporte u otro para extranjeros.',
+    )
+
     documento_identidad = models.CharField(
         max_length=50,
-        verbose_name='DNI',
-        help_text='Documento nacional de identidad (único por hotel)'
+        verbose_name='Número de documento',
+        help_text='Número del DNI, CE, pasaporte, etc. (único por hotel junto al tipo)',
     )
 
     lugar_procedencia = models.CharField(
@@ -338,12 +359,12 @@ class Huesped(models.Model):
         base_manager_name = 'all_objects'
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'documento_identidad'],
-                name='uniq_huesped_tenant_documento',
+                fields=['tenant', 'tipo_documento', 'documento_identidad'],
+                name='uniq_huesped_tenant_tipo_documento',
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'documento_identidad']),
+            models.Index(fields=['tenant', 'tipo_documento', 'documento_identidad']),
             models.Index(fields=['apellidos', 'nombre']),
         ]
 
@@ -360,6 +381,16 @@ class Huesped(models.Model):
     def nombre_completo(self):
         """Retorna el nombre completo del huésped"""
         return f'{self.nombre} {self.apellidos}'
+
+    def etiqueta_documento_resumida(self):
+        """Texto corto para listados (ej. DNI, CE)."""
+        cortos = {
+            self.TIPO_DOC_DNI: 'DNI',
+            self.TIPO_DOC_CARNET_EXTRANJERIA: 'CE',
+            self.TIPO_DOC_PASAPORTE: 'Pasaporte',
+            self.TIPO_DOC_OTRO: 'Doc.',
+        }
+        return cortos.get(self.tipo_documento, 'Doc.')
 
 
 class Reserva(models.Model):
@@ -385,6 +416,9 @@ class Reserva(models.Model):
         (ESTADO_CHECKOUT, 'Check-out Realizado'),
         (ESTADO_CANCELADA, 'Cancelada'),
     ]
+
+    # Estadía por noches: salida máxima el día `fecha_salida` a esta hora (zona del hotel).
+    HORA_LIMITE_CHECKOUT_NOCHE = time(12, 0)
 
     tenant = models.ForeignKey(
         Tenant,
@@ -420,7 +454,10 @@ class Reserva(models.Model):
     
     fecha_salida = models.DateField(
         verbose_name='Fecha de Salida',
-        help_text='Fecha en que el huésped saldrá del hotel'
+        help_text=(
+            'Día de checkout. Con política por noches, la salida máxima es ese día a las 12:00 (mediodía). '
+            'Ej.: 1 noche = entrada un día y salida el día siguiente hasta mediodía.'
+        ),
     )
 
     fecha_hora_salida_prevista = models.DateTimeField(
@@ -528,6 +565,30 @@ class Reserva(models.Model):
         if not self.fecha_hora_salida_prevista:
             return ''
         return timezone.localtime(self.fecha_hora_salida_prevista).strftime('%d/%m/%Y %H:%M')
+
+    def fecha_hora_limite_checkout_local(self):
+        """
+        Momento límite de estadía según política del hotel (zona TIME_ZONE).
+        Por noches: mediodía del día `fecha_salida`. Por horas: `fecha_hora_salida_prevista`.
+        """
+        if self.fecha_hora_salida_prevista:
+            return self.fecha_hora_salida_prevista
+        if self.fecha_salida:
+            tz = timezone.get_default_timezone()
+            naive = datetime.combine(self.fecha_salida, self.HORA_LIMITE_CHECKOUT_NOCHE)
+            return timezone.make_aware(naive, tz)
+        return None
+
+    def texto_politica_salida(self):
+        """Una línea para recepción y detalle de reserva."""
+        if self.fecha_hora_salida_prevista:
+            return f'Salida prevista: {self.descripcion_salida_prevista()}'
+        lim = self.fecha_hora_limite_checkout_local()
+        if not lim:
+            return ''
+        return timezone.localtime(lim).strftime(
+            'Salida máxima: %d/%m/%Y a las %H:%M (12:00 mediodía, día de checkout)'
+        )
 
     def horas_desde_checkin_hasta_salida_prevista(self):
         """Horas entre el check-in real y la salida prevista; None si no aplica."""

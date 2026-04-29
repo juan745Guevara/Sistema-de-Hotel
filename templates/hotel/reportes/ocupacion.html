@@ -1,18 +1,27 @@
 {% extends 'base.html' %}
 
-{% block title %}Reporte de Ocupación - Sistema Hotelero{% endblock %}
+{% block title %}Reporte operativo - Reportes{% endblock %}
 
 {% block content %}
 <div class="row mb-3">
     <div class="col-12">
-        <h1 class="h2 mb-1"><i class="bi bi-calendar-range"></i> Reporte de ocupación</h1>
-        <p class="text-muted mb-0">Período: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong>. Check-ins y check-outs listados: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>.</p>
+        <h1 class="h2 mb-1"><i class="bi bi-speedometer2"></i> Reporte operativo</h1>
+        <p class="text-muted mb-1">
+            <strong>{{ hotel_nombre }}</strong> · Actividad por <strong>día calendario</strong> ({{ time_zone_label }}): entradas de contrato, check-ins y check-outs registrados.
+            El <strong>cupo de noches</strong> (habitaciones distintas con noche vendida) no supera el inventario físico.
+        </p>
+        <p class="small text-muted mb-0">
+            Período: <strong>{{ fecha_desde_fmt }}</strong> – <strong>{{ fecha_hasta_fmt }}</strong> ({{ n_dias_informe }} día{% if n_dias_informe != 1 %}s{% endif %}).
+            Generado <strong>{{ reporte_generado_at }}</strong>.
+        </p>
     </div>
 </div>
 
-<div class="alert alert-secondary py-2 small mb-4">
-    La tabla <strong>ocupación por día</strong> usa solo fechas (noche con huésped: entrada ≤ día &lt; salida), sin canceladas.
-    Las listas de <strong>check-in y check-out registrados</strong> sí respetan el <strong>rango de hora</strong> (útil para turnos).
+<div class="alert alert-light border py-2 small mb-4">
+    Pensado para operación con <strong>usos por horas</strong>, <strong>walk-in</strong>, limpieza y <strong>varias entradas el mismo día</strong> en la misma habitación:
+    la <strong>tabla 1</strong> mide rotación y recepción (puede superar el número de habitaciones en entradas o check-ins).
+    La <strong>tabla 2</strong> resume <strong>noches comprometidas</strong> (tope = {{ total_habitaciones }} habitaciones).
+    Al final, el <strong>detalle por turno</strong> usa el filtro de hora: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>.
 </div>
 
 <div class="row mb-4">
@@ -33,11 +42,11 @@
                     </div>
                     <div class="col-12 col-md-6 col-lg-2">
                         <label class="form-label">Desde (hora)</label>
-                        <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60">
+                        <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Solo afecta al detalle por turno al final de la página">
                     </div>
                     <div class="col-12 col-md-6 col-lg-2">
                         <label class="form-label">Hasta (hora)</label>
-                        <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60">
+                        <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60" title="Solo afecta al detalle por turno al final de la página">
                     </div>
                     <div class="col-12 col-lg-2">
                         <button type="submit" class="btn btn-primary w-100">
@@ -46,8 +55,7 @@
                     </div>
                 </form>
                 <p class="small text-muted mb-0 mt-2">
-                    Por defecto <strong>00:00</strong>–<strong>23:59</strong> cubre el día completo. Ajusta horas para un turno (ej. 07:00–15:00).
-                    Zona horaria: <strong>{{ time_zone_label }}</strong>.
+                    Las tablas 1 y 2 usan cada <strong>día completo</strong> (00:00–23:59 local). Las horas aplican al <strong>detalle por turno</strong> abajo.
                     {% if turno_cruza_medianoche %}
                     <span class="d-block mt-1"><strong>Turno nocturno:</strong> misma fecha con hora hasta &lt; hora desde (ej. 22:00–06:00) → el fin es al <strong>día siguiente</strong> a esa hora.</span>
                     {% endif %}
@@ -57,60 +65,210 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm border-start border-4 border-primary">
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">Inventario ahora (estado de cada habitación)</h5>
+                <small class="text-muted">Tablero operativo: disponible, ocupada, <strong>limpieza</strong>, reservada, mantenimiento.</small>
+            </div>
+            <div class="card-body py-3">
+                <div class="row g-2 row-cols-2 row-cols-sm-3 row-cols-md-5">
+                    {% for fila in inventario_por_estado %}
+                    <div class="col">
+                        <div class="border rounded-2 px-2 py-2 h-100">
+                            <div class="small text-muted">{{ fila.estado_display }}</div>
+                            <div class="fs-5 fw-semibold">{{ fila.cantidad }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-2">
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm bg-primary bg-opacity-10">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Entradas (período)</h6>
+                <div class="fs-3 fw-semibold">{{ periodo_entradas_calendario }}</div>
+                <p class="small text-muted mb-0">Reservas con fecha de entrada en el rango (sin canceladas).</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm bg-success bg-opacity-10">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-ins (día natural, período)</h6>
+                <div class="fs-3 fw-semibold text-success">{{ periodo_checkins_dia_natural }}</div>
+                <p class="small text-muted mb-0">Registros de entrada por día completo.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm bg-info bg-opacity-10">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-outs (día natural, período)</h6>
+                <div class="fs-3 fw-semibold">{{ periodo_checkouts_dia_natural }}</div>
+                <p class="small text-muted mb-0">Salidas registradas por día completo.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Promedio entradas / día</h6>
+                <div class="fs-3 fw-semibold">{{ promedio_entradas_calendario_dia }}</div>
+                <p class="small text-muted mb-0">Entradas de calendario ÷ {{ n_dias_informe }} día{% if n_dias_informe != 1 %}s{% endif %}.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm text-white bg-primary">
+        <div class="card h-100 border-0 shadow-sm text-white bg-secondary">
             <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Reservas (entrada en período)</h6>
+                <h6 class="text-white-50 text-uppercase small">Contratos (entrada en período)</h6>
                 <h3 class="mb-0">{{ total_reservas }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Sin canceladas</p>
+                <p class="small mb-0 mt-2 opacity-75">Coincide con “Entradas (período)” si el rango es continuo por días de calendario.</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card h-100 border-0 shadow-sm text-white bg-success">
             <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Ingresos reservas</h6>
+                <h6 class="text-white-50 text-uppercase small">Ingresos (precio reservas)</h6>
                 <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_totales|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma de precios</p>
+                <p class="small mb-0 mt-2 opacity-75">Suma de precio de reservas con entrada en el período.</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm text-white bg-info">
+        <div class="card h-100 border-0 shadow-sm text-white bg-dark">
             <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Ocupación media</h6>
+                <h6 class="text-white-50 text-uppercase small">Uso medio de cupo nocturno</h6>
                 <h3 class="mb-0">{{ ocupacion_promedio|floatformat:1 }}%</h3>
-                <p class="small mb-0 mt-2 opacity-75">Promedio diario del % de habitaciones ocupadas</p>
+                <p class="small mb-0 mt-2 opacity-75">Sobre inventario. Pico {{ ocupacion_pico_pct|floatformat:1 }}% · valle {{ ocupacion_valle_pct|floatformat:1 }}%.</p>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-ins (turno)</h6>
+                <div class="fs-4 fw-semibold text-success">{{ n_checkins_turno }}</div>
+                <p class="small text-muted mb-0">Ventana hora del filtro</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-outs (turno)</h6>
+                <div class="fs-4 fw-semibold text-primary">{{ n_checkouts_turno }}</div>
+                <p class="small text-muted mb-0">Ventana hora del filtro</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-8 col-xl-8">
+        <div class="card h-100 border-0 shadow-sm border-start border-4 border-warning">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Canceladas (entrada en período)</h6>
+                <div class="fs-4 fw-semibold">{{ reservas_canceladas_entrada_en_periodo }}</div>
+                <p class="small text-muted mb-0">No cuentan en entradas ni en noches vendidas.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-body-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="mb-0">Ocupación por día</h5>
-                <span class="small text-muted">{{ total_habitaciones }} habitación(es) en inventario</span>
+            <div class="card-header bg-body-secondary">
+                <h5 class="mb-0">1. Actividad y rotación por día</h5>
+                <small class="text-muted">Día natural completo. Aquí pueden aparecer más entradas o check-ins que habitaciones físicas.</small>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
+                    <table class="table table-hover table-sm mb-0 align-middle">
+                        <thead class="table-light">
                             <tr>
                                 <th>Fecha</th>
-                                <th class="text-end">Ocupadas</th>
-                                <th class="text-end">Disponibles</th>
-                                <th class="text-end">Total</th>
-                                <th style="min-width: 12rem;">% Ocupación</th>
+                                <th class="text-end">Entradas (calendario)</th>
+                                <th class="text-end">Check-ins</th>
+                                <th class="text-end">Check-outs</th>
+                                <th class="text-end" title="Check-ins menos check-outs ese día">Balance</th>
+                                <th class="text-center">Nota</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for dia in ocupacion_por_dia %}
+                            <tr class="{% if dia.fecha == hoy_local %}table-primary{% endif %}">
+                                <td>
+                                    {{ dia.fecha|date:"d/m/Y" }}
+                                    {% if dia.fecha == hoy_local %}<span class="badge text-bg-secondary ms-1">hoy</span>{% endif %}
+                                </td>
+                                <td class="text-end fw-semibold">{{ dia.estancias_entrada_calendario }}</td>
+                                <td class="text-end">{{ dia.checkins_registrados_dia_natural }}</td>
+                                <td class="text-end">{{ dia.checkouts_registrados_dia_natural }}</td>
+                                <td class="text-end {% if dia.balance_checkin_menos_checkout > 0 %}text-success{% elif dia.balance_checkin_menos_checkout < 0 %}text-danger{% endif %}">
+                                    {% if dia.balance_checkin_menos_checkout > 0 %}+{% endif %}{{ dia.balance_checkin_menos_checkout }}
+                                </td>
+                                <td class="text-center text-nowrap">
+                                    {% if total_habitaciones and dia.estancias_entrada_calendario > total_habitaciones %}
+                                    <span class="badge text-bg-warning text-dark">Rotación</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-body-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="mb-0">2. Noches y cupo (máximo = inventario)</h5>
+                    <small class="text-muted">Habitaciones distintas con noche vendida según calendario de reservas.</small>
+                </div>
+                <span class="small text-muted">{{ total_habitaciones }} habitación(es)</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0 align-middle">
+                        <thead class="table-light">
                             <tr>
-                                <td>{{ dia.fecha|date:"d/m/Y" }}</td>
-                                <td class="text-end">{{ dia.ocupadas }}</td>
+                                <th>Fecha</th>
+                                <th class="text-end">Noche alquilada</th>
+                                <th class="text-end">Con huésped (check-in)</th>
+                                <th class="text-end">Sin noche (inv.)</th>
+                                <th class="text-end">Inventario</th>
+                                <th style="min-width: 11rem;">% inventario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dia in ocupacion_por_dia %}
+                            <tr class="{% if dia.fecha == hoy_local %}table-primary{% endif %}">
+                                <td>
+                                    {{ dia.fecha|date:"d/m/Y" }}
+                                    {% if dia.fecha == hoy_local %}<span class="badge text-bg-secondary ms-1">hoy</span>{% endif %}
+                                </td>
+                                <td class="text-end">{{ dia.habitaciones_noche_vendida }}</td>
+                                <td class="text-end">{{ dia.habitaciones_con_checkin }}</td>
                                 <td class="text-end">{{ dia.disponibles }}</td>
                                 <td class="text-end">{{ total_habitaciones }}</td>
                                 <td>
@@ -131,6 +289,12 @@
     </div>
 </div>
 
+<div class="row mb-2">
+    <div class="col-12">
+        <h2 class="h6 text-uppercase text-muted mb-0">Detalle por turno (filtro de hora)</h2>
+        <p class="small text-muted mb-0">Listas filtradas por <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (no por día natural).</p>
+    </div>
+</div>
 {% include 'hotel/reportes/_movimientos_estadia.html' %}
 
 <div class="row mt-4">

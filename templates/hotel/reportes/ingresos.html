@@ -6,7 +6,8 @@
 <div class="row mb-3">
     <div class="col-12">
         <h1 class="h2 mb-1"><i class="bi bi-cash-stack"></i> Reporte de ingresos</h1>
-        <p class="text-muted mb-0">Período: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong></p>
+        <p class="text-muted mb-1"><strong>{{ hotel_nombre }}</strong> · Período fechas: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong></p>
+        <p class="small text-muted mb-0">Generado <strong>{{ reporte_generado_at }}</strong> · Zona: <strong>{{ time_zone_label }}</strong></p>
     </div>
 </div>
 
@@ -53,6 +54,49 @@
                     Ventana de turno: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (<strong>{{ time_zone_label }}</strong>).
                     Deja <strong>00:00</strong> a <strong>23:59</strong> en la misma fecha para el día completo.
                 </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if montos_reservas_vs_checkout_distintos %}
+<div class="alert alert-info py-2 small mb-4">
+    Los montos de <strong>reservas (precio)</strong> y <strong>check-outs (cobrado)</strong> suelen <strong>no coincidir</strong>: el primero suma por <strong>fecha de entrada</strong> en el rango; el segundo por <strong>momento del cobro</strong> en la ventana de hora. Ambos son correctos para sus respectivos fines.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-ins (ventana hora)</h6>
+                <div class="fs-4 fw-semibold">{{ n_checkins_turno }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Check-outs (ventana hora)</h6>
+                <div class="fs-4 fw-semibold">{{ n_checkouts_turno }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Con depósito</h6>
+                <div class="fs-4 fw-semibold">{{ checkins_con_deposito_turno }}</div>
+                <p class="small text-muted mb-0">De los check-ins del turno</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <h6 class="text-muted text-uppercase small mb-1">Movimientos totales</h6>
+                <div class="fs-4 fw-semibold">{{ n_checkins_turno|add:n_checkouts_turno }}</div>
+                <p class="small text-muted mb-0">Entradas + salidas registradas</p>
             </div>
         </div>
     </div>

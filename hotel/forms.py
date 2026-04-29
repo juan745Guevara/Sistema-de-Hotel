@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from decimal import Decimal
 
@@ -9,15 +10,36 @@ from django.utils import timezone
 from .models import Habitacion, Huesped, Membership, Reserva, CheckIn, CheckOut
 
 
+def normalizar_y_validar_documento_huesped(tipo: str, raw: str) -> str:
+    """
+    Valida y normaliza el número según el tipo.
+    DNI Perú: 8 dígitos. CE / pasaporte / otro: alfanumérico, 4–50 caracteres.
+    """
+    if tipo == Huesped.TIPO_DOC_DNI:
+        num = re.sub(r'\D', '', raw or '')
+        if not re.fullmatch(r'\d{8}', num):
+            raise ValidationError('El DNI peruano debe tener exactamente 8 dígitos.')
+        return num
+    s = (raw or '').strip().upper().replace(' ', '')
+    if len(s) < 4:
+        raise ValidationError('El documento debe tener al menos 4 caracteres.')
+    if len(s) > 50:
+        raise ValidationError('El documento no puede superar 50 caracteres.')
+    if not re.fullmatch(r'[A-Z0-9.\-]+', s):
+        raise ValidationError('Use solo letras, números, puntos o guiones.')
+    return s
+
+
 class HuespedForm(forms.ModelForm):
-    """Registro básico de huésped: DNI, nombres, apellidos y lugar de procedencia."""
+    """Registro básico de huésped: tipo de documento, número, nombres y procedencia."""
 
     class Meta:
         model = Huesped
-        fields = ['documento_identidad', 'nombre', 'apellidos', 'lugar_procedencia']
+        fields = ['tipo_documento', 'documento_identidad', 'nombre', 'apellidos', 'lugar_procedencia']
         widgets = {
+            'tipo_documento': forms.Select(attrs={'class': 'form-select'}),
             'documento_identidad': forms.TextInput(
-                attrs={'class': 'form-control', 'inputmode': 'numeric', 'autocomplete': 'off'}
+                attrs={'class': 'form-control', 'autocomplete': 'off'}
             ),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'given-name'}),
             'apellidos': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'family-name'}),
@@ -25,6 +47,16 @@ class HuespedForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'autocomplete': 'address-level2'}
             ),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo = cleaned.get('tipo_documento')
+        raw = cleaned.get('documento_identidad')
+        try:
+            cleaned['documento_identidad'] = normalizar_y_validar_documento_huesped(tipo, raw)
+        except ValidationError as e:
+            self.add_error('documento_identidad', e.messages[0])
+        return cleaned
 
 
 class HabitacionForm(forms.ModelForm):
@@ -49,7 +81,7 @@ class HabitacionForm(forms.ModelForm):
 
 
 class ReservaForm(forms.ModelForm):
-    """Siempre registra o actualiza el huésped por DNI + datos (sin desplegable de huéspedes)."""
+    """Registra o actualiza el huésped por tipo + número de documento y datos."""
 
     habitacion = forms.ModelChoiceField(
         label='Habitación',
@@ -57,14 +89,19 @@ class ReservaForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
 
+    huesped_tipo_documento = forms.ChoiceField(
+        label='Tipo de documento del huésped',
+        choices=Huesped.TIPO_DOCUMENTO_CHOICES,
+        initial=Huesped.TIPO_DOC_DNI,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
     huesped_documento = forms.CharField(
-        label='DNI',
+        label='Número de documento',
         max_length=50,
         widget=forms.TextInput(
             attrs={
                 'class': 'form-control',
-                'placeholder': 'Ej. 12345678',
-                'inputmode': 'numeric',
+                'placeholder': 'Ej. 12345678 o número de CE / pasaporte',
                 'autocomplete': 'off',
             }
         ),
@@ -104,6 +141,14 @@ class ReservaForm(forms.ModelForm):
             'numero_huespedes': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+        help_texts = {
+            'fecha_entrada': 'Primer día de la estadía (ingreso habitual ese día).',
+            'fecha_salida': (
+                'Día de checkout. Política del hotel: cada noche incluye la habitación hasta las '
+                '12:00 (mediodía) de este día. Ej.: 1 noche = entrada un día y salida el día siguiente '
+                'al mediodía; 2 noches = salida dos días después al mediodía, etc.'
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -116,6 +161,7 @@ class ReservaForm(forms.ModelForm):
 
         if self.instance.pk and self.instance.huesped_id:
             h = self.instance.huesped
+            self.fields['huesped_tipo_documento'].initial = h.tipo_documento
             self.fields['huesped_documento'].initial = h.documento_identidad
             self.fields['huesped_nombre'].initial = h.nombre
             self.fields['huesped_apellidos'].initial = h.apellidos
@@ -123,6 +169,7 @@ class ReservaForm(forms.ModelForm):
 
         self.order_fields(
             [
+                'huesped_tipo_documento',
                 'huesped_documento',
                 'huesped_nombre',
                 'huesped_apellidos',
@@ -148,17 +195,27 @@ class ReservaForm(forms.ModelForm):
         habitacion = cleaned_data.get('habitacion')
         numero_huespedes = cleaned_data.get('numero_huespedes')
 
-        doc = (cleaned_data.get('huesped_documento') or '').strip()
-        if doc:
-            cleaned_data['huesped_documento'] = doc
-            if self.instance.pk and self.instance.huesped_id:
-                actual = self.instance.huesped
-                if doc != actual.documento_identidad:
-                    if Huesped.objects.filter(documento_identidad=doc).exclude(pk=actual.pk).exists():
-                        self.add_error(
-                            'huesped_documento',
-                            'Ya existe otro huésped con este DNI en el hotel.',
-                        )
+        tipo = cleaned_data.get('huesped_tipo_documento') or Huesped.TIPO_DOC_DNI
+        doc_raw = cleaned_data.get('huesped_documento')
+        try:
+            doc = normalizar_y_validar_documento_huesped(tipo, doc_raw)
+        except ValidationError as e:
+            self.add_error('huesped_documento', e.messages[0])
+            return cleaned_data
+        cleaned_data['huesped_documento'] = doc
+
+        if self.instance.pk and self.instance.huesped_id:
+            actual = self.instance.huesped
+            if (
+                doc != actual.documento_identidad
+                or tipo != actual.tipo_documento
+            ) and Huesped.objects.filter(
+                tipo_documento=tipo, documento_identidad=doc
+            ).exclude(pk=actual.pk).exists():
+                self.add_error(
+                    'huesped_documento',
+                    'Ya existe otro huésped con este tipo y número de documento en el hotel.',
+                )
 
         if fecha_entrada and fecha_salida:
             if fecha_entrada >= fecha_salida:
@@ -207,9 +264,11 @@ class ReservaForm(forms.ModelForm):
         reserva = super().save(commit=False)
         d = self.cleaned_data
         doc = d['huesped_documento']
+        tipo = d['huesped_tipo_documento']
 
         if not self.instance.pk:
             huesped, created = Huesped.objects.get_or_create(
+                tipo_documento=tipo,
                 documento_identidad=doc,
                 defaults={
                     'nombre': d['huesped_nombre'],
@@ -223,18 +282,29 @@ class ReservaForm(forms.ModelForm):
                 huesped.nombre = d['huesped_nombre']
                 huesped.apellidos = d['huesped_apellidos']
                 huesped.lugar_procedencia = d['huesped_lugar_procedencia']
+                huesped.tipo_documento = tipo
+                huesped.documento_identidad = doc
                 huesped.save(
-                    update_fields=['nombre', 'apellidos', 'lugar_procedencia', 'fecha_actualizacion']
+                    update_fields=[
+                        'nombre',
+                        'apellidos',
+                        'lugar_procedencia',
+                        'tipo_documento',
+                        'documento_identidad',
+                        'fecha_actualizacion',
+                    ]
                 )
             reserva.huesped = huesped
         else:
             huesped = self.instance.huesped
+            huesped.tipo_documento = tipo
             huesped.documento_identidad = doc
             huesped.nombre = d['huesped_nombre']
             huesped.apellidos = d['huesped_apellidos']
             huesped.lugar_procedencia = d['huesped_lugar_procedencia']
             huesped.save(
                 update_fields=[
+                    'tipo_documento',
                     'documento_identidad',
                     'nombre',
                     'apellidos',

@@ -29,6 +29,7 @@ from .forms import (
     ReservaForm,
     CheckInForm,
     CheckOutForm,
+    normalizar_y_validar_documento_huesped,
 )
 from .pdf_registro import build_registro_pdf
 
@@ -636,9 +637,51 @@ def realizar_checkout(request, reserva_id):
 
 # ========== REPORTES Y ANÁLISIS ==========
 
+
+def _reporte_contexto_comun(request):
+    return {
+        'hotel_nombre': getattr(getattr(request, 'tenant', None), 'name', None) or 'Hotel',
+        'reporte_generado_at': timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M'),
+    }
+
+
+def _inventario_habitaciones_por_estado():
+    raw = {row['estado']: row['n'] for row in Habitacion.objects.values('estado').annotate(n=Count('id'))}
+    return [
+        {'estado': code, 'estado_display': label, 'cantidad': raw.get(code, 0)}
+        for code, label in Habitacion.ESTADO_CHOICES
+    ]
+
+
 def reportes(request):
-    """Página principal de reportes"""
-    return render(request, 'hotel/reportes/index.html')
+    """Panel de reportes con vista rápida del día."""
+    hoy = timezone.localdate()
+    total_hab = Habitacion.objects.count()
+    noche_vendida_hoy = (
+        Reserva.objects.filter(fecha_entrada__lte=hoy, fecha_salida__gt=hoy)
+        .exclude(estado=Reserva.ESTADO_CANCELADA)
+        .aggregate(n=Count('habitacion', distinct=True))['n']
+        or 0
+    )
+    pct_hoy = round((noche_vendida_hoy / total_hab * 100), 1) if total_hab else 0
+    en_casa_hab = (
+        Reserva.objects.filter(
+            estado=Reserva.ESTADO_CHECKIN,
+            fecha_entrada__lte=hoy,
+            fecha_salida__gt=hoy,
+        ).aggregate(n=Count('habitacion', distinct=True))['n']
+        or 0
+    )
+    ctx = {
+        'reporte_index_hoy': hoy,
+        'reporte_index_total_habitaciones': total_hab,
+        'reporte_index_noches_vendidas_hab': noche_vendida_hoy,
+        'reporte_index_ocupacion_pct_hoy': pct_hoy,
+        'reporte_index_en_casa_checkin': en_casa_hab,
+        'inventario_por_estado': _inventario_habitaciones_por_estado(),
+    }
+    ctx.update(_reporte_contexto_comun(request))
+    return render(request, 'hotel/reportes/index.html', ctx)
 
 
 def _resolver_rango_fechas(request):
@@ -834,48 +877,94 @@ def _resumen_medios_turno(checkins_list, checkouts_list):
 
 
 def reporte_ocupacion(request):
-    """Reporte de ocupación del hotel"""
+    """Reporte operativo: rotación por día, noches vendidas y detalle por turno."""
     rango = _rango_reporte_fecha_hora(request)
     fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
-    
-    # Calcular ocupación por día
+
     ocupacion_por_dia = []
     fecha_actual = fecha_desde
     fecha_fin = fecha_hasta
-    
     total_habitaciones = Habitacion.objects.count()
-    
+    tz_local = timezone.get_default_timezone()
+
     while fecha_actual <= fecha_fin:
-        # Noches con huésped en casa (excluye canceladas; incluye checkout si aún cubre la noche).
-        reservas_activas = (
+        q_base = (
             Reserva.objects.filter(
                 fecha_entrada__lte=fecha_actual,
                 fecha_salida__gt=fecha_actual,
             )
             .exclude(estado=Reserva.ESTADO_CANCELADA)
-            .count()
+        )
+        habitaciones_noche_vendida = (
+            q_base.aggregate(n=Count('habitacion', distinct=True))['n'] or 0
+        )
+        habitaciones_con_huesped = (
+            q_base.filter(estado=Reserva.ESTADO_CHECKIN)
+            .aggregate(n=Count('habitacion', distinct=True))['n']
+            or 0
         )
 
-        porcentaje_raw = (reservas_activas / total_habitaciones * 100) if total_habitaciones > 0 else 0
+        dia_natural_ini = timezone.make_aware(datetime.combine(fecha_actual, time.min), tz_local)
+        dia_natural_fin = dia_natural_ini + timedelta(days=1)
+        estancias_entrada_calendario = (
+            Reserva.objects.filter(fecha_entrada=fecha_actual)
+            .exclude(estado=Reserva.ESTADO_CANCELADA)
+            .count()
+        )
+        checkins_registrados_dia_natural = (
+            CheckIn.objects.filter(
+                fecha_hora__gte=dia_natural_ini,
+                fecha_hora__lt=dia_natural_fin,
+            )
+            .exclude(reserva__estado=Reserva.ESTADO_CANCELADA)
+            .count()
+        )
+        checkouts_registrados_dia_natural = (
+            CheckOut.objects.filter(
+                fecha_hora__gte=dia_natural_ini,
+                fecha_hora__lt=dia_natural_fin,
+            )
+            .exclude(reserva__estado=Reserva.ESTADO_CANCELADA)
+            .count()
+        )
+        balance_checkin_menos_checkout = (
+            checkins_registrados_dia_natural - checkouts_registrados_dia_natural
+        )
+
+        porcentaje_raw = (
+            (habitaciones_noche_vendida / total_habitaciones * 100) if total_habitaciones > 0 else 0
+        )
         porcentaje = min(100.0, round(porcentaje_raw, 2))
 
         ocupacion_por_dia.append({
             'fecha': fecha_actual,
-            'ocupadas': reservas_activas,
-            'disponibles': total_habitaciones - reservas_activas,
+            'habitaciones_noche_vendida': habitaciones_noche_vendida,
+            'habitaciones_con_checkin': habitaciones_con_huesped,
+            'estancias_entrada_calendario': estancias_entrada_calendario,
+            'checkins_registrados_dia_natural': checkins_registrados_dia_natural,
+            'checkouts_registrados_dia_natural': checkouts_registrados_dia_natural,
+            'balance_checkin_menos_checkout': balance_checkin_menos_checkout,
+            'ocupadas': habitaciones_noche_vendida,
+            'disponibles': total_habitaciones - habitaciones_noche_vendida,
             'porcentaje': porcentaje,
         })
         fecha_actual += timedelta(days=1)
-    
-    # Estadísticas generales
-    reservas_periodo = Reserva.objects.filter(
-        fecha_entrada__gte=fecha_desde,
-        fecha_entrada__lte=fecha_hasta,
-    ).exclude(estado=Reserva.ESTADO_CANCELADA)
-    
+
+    reservas_periodo = (
+        Reserva.objects.filter(
+            fecha_entrada__gte=fecha_desde,
+            fecha_entrada__lte=fecha_hasta,
+        ).exclude(estado=Reserva.ESTADO_CANCELADA)
+    )
+
     total_reservas = reservas_periodo.count()
     ingresos_totales = reservas_periodo.aggregate(Sum('precio_total'))['precio_total__sum'] or 0
-    ocupacion_promedio = sum(d['porcentaje'] for d in ocupacion_por_dia) / len(ocupacion_por_dia) if ocupacion_por_dia else 0
+    ocupacion_promedio = (
+        sum(d['porcentaje'] for d in ocupacion_por_dia) / len(ocupacion_por_dia) if ocupacion_por_dia else 0
+    )
+    pcts = [d['porcentaje'] for d in ocupacion_por_dia]
+    ocupacion_pico_pct = max(pcts) if pcts else 0
+    ocupacion_valle_pct = min(pcts) if pcts else 0
 
     checkins_detalle = list(
         CheckIn.objects.filter(
@@ -897,8 +986,22 @@ def reporte_ocupacion(request):
     filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
     filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
 
+    reservas_canceladas_entrada_en_periodo = Reserva.objects.filter(
+        estado=Reserva.ESTADO_CANCELADA,
+        fecha_entrada__gte=fecha_desde,
+        fecha_entrada__lte=fecha_hasta,
+    ).count()
+
+    n_dias_informe = len(ocupacion_por_dia) or 1
+    periodo_entradas_calendario = sum(d['estancias_entrada_calendario'] for d in ocupacion_por_dia)
+    periodo_checkins_dia_natural = sum(d['checkins_registrados_dia_natural'] for d in ocupacion_por_dia)
+    periodo_checkouts_dia_natural = sum(d['checkouts_registrados_dia_natural'] for d in ocupacion_por_dia)
+    promedio_entradas_calendario_dia = round(periodo_entradas_calendario / n_dias_informe, 2)
+
     context = {
         'ocupacion_por_dia': ocupacion_por_dia,
+        'hoy_local': timezone.localdate(),
+        'inventario_por_estado': _inventario_habitaciones_por_estado(),
         'fecha_desde': fecha_desde.isoformat(),
         'fecha_hasta': fecha_hasta.isoformat(),
         'fecha_desde_fmt': fecha_desde.strftime('%d/%m/%Y'),
@@ -915,7 +1018,18 @@ def reporte_ocupacion(request):
         'total_habitaciones': total_habitaciones,
         'checkins_detalle': checkins_detalle,
         'checkouts_detalle': checkouts_detalle,
+        'n_checkins_turno': len(checkins_detalle),
+        'n_checkouts_turno': len(checkouts_detalle),
+        'ocupacion_pico_pct': round(ocupacion_pico_pct, 2),
+        'ocupacion_valle_pct': round(ocupacion_valle_pct, 2),
+        'reservas_canceladas_entrada_en_periodo': reservas_canceladas_entrada_en_periodo,
+        'n_dias_informe': n_dias_informe,
+        'periodo_entradas_calendario': periodo_entradas_calendario,
+        'periodo_checkins_dia_natural': periodo_checkins_dia_natural,
+        'periodo_checkouts_dia_natural': periodo_checkouts_dia_natural,
+        'promedio_entradas_calendario_dia': promedio_entradas_calendario_dia,
     }
+    context.update(_reporte_contexto_comun(request))
     return render(request, 'hotel/reportes/ocupacion.html', context)
 
 
@@ -1037,6 +1151,15 @@ def reporte_ingresos(request):
     filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
     filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
 
+    n_checkins_turno = len(checkins_detalle)
+    n_checkouts_turno = len(checkouts_detalle)
+    checkins_con_deposito_turno = sum(
+        1 for c in checkins_detalle if (c.deposito or Decimal('0')) > 0
+    )
+    ir = Decimal(str(ingresos_reservas or 0)).quantize(Decimal('0.01'))
+    ic = Decimal(str(ingresos_checkouts or 0)).quantize(Decimal('0.01'))
+    montos_reservas_vs_checkout_distintos = ir != ic
+
     context = {
         'fecha_desde': fecha_desde.isoformat(),
         'fecha_hasta': fecha_hasta.isoformat(),
@@ -1061,7 +1184,12 @@ def reporte_ingresos(request):
         'ingresos_por_tipo': ingresos_por_tipo,
         'checkins_detalle': checkins_detalle,
         'checkouts_detalle': checkouts_detalle,
+        'n_checkins_turno': n_checkins_turno,
+        'n_checkouts_turno': n_checkouts_turno,
+        'checkins_con_deposito_turno': checkins_con_deposito_turno,
+        'montos_reservas_vs_checkout_distintos': montos_reservas_vs_checkout_distintos,
     }
+    context.update(_reporte_contexto_comun(request))
     return render(request, 'hotel/reportes/ingresos.html', context)
 
 
@@ -1111,7 +1239,6 @@ def reporte_registro(request):
     fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
     filtro_hora_mov_desde = f'{fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]}'
     filtro_hora_mov_hasta = rango['filtro_hora_mov_hasta_display']
-    hotel_nombre = getattr(getattr(request, 'tenant', None), 'name', None) or 'Hotel'
     context = {
         'filas': filas,
         'total_registros': len(filas),
@@ -1125,9 +1252,9 @@ def reporte_registro(request):
         'filtro_hora_mov_hasta': filtro_hora_mov_hasta,
         'turno_cruza_medianoche': rango['turno_cruza_medianoche'],
         'time_zone_label': rango['time_zone_label'],
-        'hotel_nombre': hotel_nombre,
         'querystring': request.GET.urlencode(),
     }
+    context.update(_reporte_contexto_comun(request))
     return render(request, 'hotel/reportes/registro.html', context)
 
 
@@ -1135,7 +1262,7 @@ def reporte_registro_pdf(request):
     """Descarga PDF del registro (mismos filtros GET que la vista HTML)."""
     rango, filas = _filas_reporte_registro(request)
     fecha_desde, fecha_hasta = rango['fecha_desde'], rango['fecha_hasta']
-    hotel_nombre = getattr(getattr(request, 'tenant', None), 'name', None) or 'Hotel'
+    hotel_nombre = _reporte_contexto_comun(request)['hotel_nombre']
     periodo = (
         f'Período de registro (check-in): del {fecha_desde.strftime("%d/%m/%Y")} {rango["hora_desde"]} '
         f'al {rango["filtro_hora_mov_hasta_display"]} — Zona horaria: {rango["time_zone_label"]}'
@@ -1574,7 +1701,15 @@ def tablero_habitaciones(request):
 def walkin(request):
     """Check-in sin reserva previa (walk-in): por noches o por horas (salida prevista con fecha y hora)."""
     if request.method == 'POST':
-        documento = request.POST.get('documento_identidad', '').strip()
+        documento_raw = request.POST.get('documento_identidad', '').strip()
+        tipo_doc = (request.POST.get('tipo_documento') or Huesped.TIPO_DOC_DNI).strip()
+        if tipo_doc not in {c[0] for c in Huesped.TIPO_DOCUMENTO_CHOICES}:
+            tipo_doc = Huesped.TIPO_DOC_DNI
+        try:
+            documento = normalizar_y_validar_documento_huesped(tipo_doc, documento_raw)
+        except ValidationError as e:
+            messages.error(request, e.messages[0])
+            return redirect('walkin')
         nombre = request.POST.get('nombre', '').strip()
         apellidos = request.POST.get('apellidos', '').strip()
         lugar_procedencia = request.POST.get('lugar_procedencia', '').strip()
@@ -1600,21 +1735,37 @@ def walkin(request):
             numero_huespedes = int(numero_huespedes_str)
             deposito = Decimal(str(deposito_str))
 
-            if not documento or not nombre or not apellidos or not lugar_procedencia:
-                messages.error(request, 'Complete DNI, nombres, apellidos y lugar de procedencia del huésped.')
+            if not nombre or not apellidos or not lugar_procedencia:
+                messages.error(
+                    request,
+                    'Complete el documento, nombres, apellidos y lugar de procedencia del huésped.',
+                )
                 return redirect('walkin')
 
             # Walk-in: alta en recepción (no exige huésped previo en administración).
-            huesped = Huesped.objects.filter(documento_identidad__iexact=documento).first()
+            huesped = Huesped.objects.filter(
+                documento_identidad=documento,
+                tipo_documento=tipo_doc,
+            ).first()
             if huesped:
                 huesped.nombre = nombre
                 huesped.apellidos = apellidos
                 huesped.lugar_procedencia = lugar_procedencia
+                huesped.tipo_documento = tipo_doc
+                huesped.documento_identidad = documento
                 huesped.save(
-                    update_fields=['nombre', 'apellidos', 'lugar_procedencia', 'fecha_actualizacion']
+                    update_fields=[
+                        'nombre',
+                        'apellidos',
+                        'lugar_procedencia',
+                        'tipo_documento',
+                        'documento_identidad',
+                        'fecha_actualizacion',
+                    ]
                 )
             else:
                 huesped = Huesped.objects.create(
+                    tipo_documento=tipo_doc,
                     documento_identidad=documento,
                     nombre=nombre,
                     apellidos=apellidos,

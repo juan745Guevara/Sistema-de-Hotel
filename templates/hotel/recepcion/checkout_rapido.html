@@ -23,6 +23,7 @@
                     <strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}<br>
                     <strong>Habitación:</strong> {{ reserva.habitacion.numero }}<br>
                     <strong>Fechas:</strong> {{ reserva.fecha_entrada }} - {{ reserva.fecha_salida }}<br>
+                    <span class="small text-muted">{{ reserva.texto_politica_salida }}</span><br>
                     {% if reserva.fecha_hora_salida_prevista %}
                     <strong>Salida prevista:</strong> {{ reserva.descripcion_salida_prevista }}<br>
                     {% endif %}

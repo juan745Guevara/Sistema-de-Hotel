@@ -39,6 +39,7 @@ class HabitacionAdmin(admin.ModelAdmin):
 @admin.register(Huesped)
 class HuespedAdmin(admin.ModelAdmin):
     list_display = [
+        'tipo_documento',
         'documento_identidad',
         'nombre',
         'apellidos',

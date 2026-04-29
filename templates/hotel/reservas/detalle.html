@@ -34,20 +34,18 @@
                     </span>
                 </p>
                 <p><strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}</p>
-                <p><strong>DNI:</strong> {{ reserva.huesped.documento_identidad }}</p>
+                <p><strong>Documento:</strong> {{ reserva.huesped.get_tipo_documento_display }} — {{ reserva.huesped.documento_identidad }}</p>
                 {% if reserva.huesped.lugar_procedencia %}
                 <p><strong>Lugar de procedencia:</strong> {{ reserva.huesped.lugar_procedencia }}</p>
                 {% endif %}
                 <p><strong>Habitación:</strong> <a href="{% url 'detalle_habitacion' reserva.habitacion.id %}">{{ reserva.habitacion.numero }} - {{ reserva.habitacion.get_tipo_display }}</a></p>
                 <p><strong>Fecha de Entrada:</strong> {{ reserva.fecha_entrada }}</p>
                 <p><strong>Fecha de Salida:</strong> {{ reserva.fecha_salida }}</p>
-                {% if reserva.fecha_hora_salida_prevista %}
-                <p><strong>Salida prevista:</strong> {{ reserva.descripcion_salida_prevista }}</p>
-                {% if checkin %}
+                <p class="small mb-0"><i class="bi bi-clock"></i> <strong>Política de salida:</strong> {{ reserva.texto_politica_salida }}</p>
+                {% if reserva.es_estadia_por_horas and checkin %}
                 <p class="text-muted small mb-0">Duración prevista desde check-in: {{ reserva.horas_desde_checkin_hasta_salida_prevista }} h</p>
                 {% endif %}
-                {% endif %}
-                <p><strong>Número de Noches:</strong> {{ reserva.numero_noches }}{% if reserva.es_estadia_por_horas %} <span class="text-muted">(estadía por horas)</span>{% endif %}</p>
+                <p class="mt-2 mb-0"><strong>Número de Noches:</strong> {{ reserva.numero_noches }}{% if reserva.es_estadia_por_horas %} <span class="text-muted">(estadía por horas)</span>{% endif %}</p>
                 <p><strong>Número de Huéspedes:</strong> {{ reserva.numero_huespedes }}</p>
                 <p><strong>Precio Total:</strong> {{ MONEDA_SIMBOLO }}{{ reserva.precio_total|floatformat:2 }}</p>
                 {% if reserva.creado_por %}

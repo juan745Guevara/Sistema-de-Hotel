@@ -3,7 +3,10 @@
     <div class="col-12 col-xl-6">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-header bg-body-secondary">
-                <h5 class="mb-0"><i class="bi bi-box-arrow-in-right text-success"></i> Check-ins registrados</h5>
+                <h5 class="mb-0 d-flex flex-wrap align-items-center gap-2">
+                    <span><i class="bi bi-box-arrow-in-right text-success"></i> Check-ins registrados</span>
+                    <span class="badge rounded-pill text-bg-secondary">{{ checkins_detalle|length }}</span>
+                </h5>
                 <small class="text-muted">Hora de entrada real al momento de registrar el check-in en el sistema.</small>
             </div>
             <div class="card-body p-0">
@@ -51,7 +54,10 @@
     <div class="col-12 col-xl-6">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-header bg-body-secondary">
-                <h5 class="mb-0"><i class="bi bi-box-arrow-right text-primary"></i> Check-outs registrados</h5>
+                <h5 class="mb-0 d-flex flex-wrap align-items-center gap-2">
+                    <span><i class="bi bi-box-arrow-right text-primary"></i> Check-outs registrados</span>
+                    <span class="badge rounded-pill text-bg-secondary">{{ checkouts_detalle|length }}</span>
+                </h5>
                 <small class="text-muted">Hora de salida real al momento de registrar el check-out en el sistema.</small>
             </div>
             <div class="card-body p-0">

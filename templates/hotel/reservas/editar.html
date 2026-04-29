@@ -12,7 +12,7 @@
             </div>
             <div class="card-body">
                 <div class="alert alert-light border mb-4 small">
-                    Los datos del huésped se guardan en el registro maestro (por DNI). Si cambia el DNI a uno que ya existe en el hotel, el sistema no lo permitirá.
+                    Los datos del huésped se guardan en el registro maestro (tipo + número de documento). Si cambia a un documento que ya pertenece a otro huésped en el hotel, el sistema no lo permitirá.
                 </div>
                 <form method="post">
                     {% csrf_token %}

@@ -62,6 +62,7 @@ class ReservaCheckinCheckoutFlowTests(TenantFlowTestCase):
         hoy = timezone.localdate()
         manana = hoy + timedelta(days=1)
         data = {
+            'huesped_tipo_documento': 'dni',
             'huesped_documento': '99988877',
             'huesped_nombre': 'Ana',
             'huesped_apellidos': 'Prueba',
@@ -133,6 +134,7 @@ class WalkinFlowTests(TenantFlowTestCase):
     def test_walkin_crea_reserva_en_checkin_y_ocupa_habitacion(self):
         self._login_admin()
         data = {
+            'tipo_documento': 'dni',
             'documento_identidad': '11223344',
             'nombre': 'Luis',
             'apellidos': 'Walkin',

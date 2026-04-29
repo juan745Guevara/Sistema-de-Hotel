@@ -25,6 +25,7 @@ class CancelarReservaTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '44411122',
                 'huesped_nombre': 'Carla',
                 'huesped_apellidos': 'Cancel',
@@ -56,6 +57,7 @@ class CancelarReservaTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '33322211',
                 'huesped_nombre': 'Ben',
                 'huesped_apellidos': 'Check',
@@ -97,6 +99,7 @@ class EditarReservaBloqueadaTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '77788899',
                 'huesped_nombre': 'Dana',
                 'huesped_apellidos': 'Edit',
@@ -135,6 +138,7 @@ class BusquedaRapidaTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '12121212',
                 'huesped_nombre': 'Eva',
                 'huesped_apellidos': 'Busq',
@@ -175,6 +179,7 @@ class EliminarHabitacionTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '65656565',
                 'huesped_nombre': 'Fio',
                 'huesped_apellidos': 'Res',
@@ -200,6 +205,7 @@ class CheckinDepositoTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '41414141',
                 'huesped_nombre': 'Gus',
                 'huesped_apellidos': 'Dep',
@@ -239,6 +245,7 @@ class CheckoutMixtoFlowTests(TenantFlowTestCase):
         self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '30303030',
                 'huesped_nombre': 'Helo',
                 'huesped_apellidos': 'Mix',
@@ -288,6 +295,34 @@ class CheckoutMixtoFlowTests(TenantFlowTestCase):
         self.assertEqual(co.mixto_yape, resto)
 
 
+class DocumentoExtranjeroTests(TenantFlowTestCase):
+    def test_reserva_con_carnet_extranjeria(self):
+        self._login_admin()
+        hoy = timezone.localdate()
+        manana = hoy + timedelta(days=1)
+        self.client.post(
+            reverse('crear_reserva'),
+            {
+                'huesped_tipo_documento': 'carnet_extranjeria',
+                'huesped_documento': '001-ab12345',
+                'huesped_nombre': 'Jane',
+                'huesped_apellidos': 'Extranj',
+                'huesped_lugar_procedencia': 'Buenos Aires',
+                'habitacion': str(self.hab2.pk),
+                'fecha_entrada': hoy.isoformat(),
+                'fecha_salida': manana.isoformat(),
+                'numero_huespedes': '1',
+                'notas': '',
+            },
+            follow=True,
+        )
+        h = Huesped.objects.get(
+            tipo_documento=Huesped.TIPO_DOC_CARNET_EXTRANJERIA,
+            documento_identidad='001-AB12345',
+        )
+        self.assertEqual(h.nombre, 'Jane')
+
+
 class ReporteOcupacionAccessTests(TenantFlowTestCase):
     def test_reporte_ocupacion_ok_admin(self):
         self._login_admin()
@@ -316,6 +351,7 @@ class CrearReservaCapacidadInvalidaTests(TenantFlowTestCase):
         r = self.client.post(
             reverse('crear_reserva'),
             {
+                'huesped_tipo_documento': 'dni',
                 'huesped_documento': '18181818',
                 'huesped_nombre': 'Ivo',
                 'huesped_apellidos': 'Cap',
