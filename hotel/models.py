@@ -83,6 +83,9 @@ class Membership(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['user', 'tenant'], name='unique_membership_user_tenant'),
         ]
+        indexes = [
+            models.Index(fields=['tenant', 'user'], name='hotel_member_tenant_user_idx'),
+        ]
 
     def __str__(self):
         return f'{self.user} @ {self.tenant}'
@@ -251,6 +254,112 @@ class Huesped(models.Model):
         (TIPO_DOC_OTRO, 'Otro documento'),
     ]
 
+    # Lista (controlada) de nacionalidades para el formulario.
+    # Para DNI se fuerza 'Perú' automáticamente en el backend.
+    NACIONALIDAD_PERU = 'Perú'
+    _NACIONALIDADES_RAW = [
+        (NACIONALIDAD_PERU, 'Perú'),
+        ('Mexicano', 'Mexicano'),
+        ('Colombiano', 'Colombiano'),
+        ('Ecuatoriano', 'Ecuatoriano'),
+        ('Venezolano', 'Venezolano'),
+        ('Argentino', 'Argentino'),
+        ('Chileno', 'Chileno'),
+        ('Boliviano', 'Boliviano'),
+        ('Uruguayo', 'Uruguayo'),
+        ('Paraguayo', 'Paraguayo'),
+        ('Brasileño', 'Brasileño'),
+        ('Costarricense', 'Costarricense'),
+        ('Guatemalteco', 'Guatemalteco'),
+        ('Hondureño', 'Hondureño'),
+        ('Salvadoreño', 'Salvadoreño'),
+        ('Nicaragüense', 'Nicaragüense'),
+        ('Panameño', 'Panameño'),
+        ('Dominicano', 'Dominicano'),
+        ('Cubano', 'Cubano'),
+        ('Haitiano', 'Haitiano'),
+        ('Jamaicano', 'Jamaicano'),
+        ('Trinitense', 'Trinitense'),
+        ('Estadounidense', 'Estadounidense'),
+        ('Canadiense', 'Canadiense'),
+        ('Español', 'Español'),
+        ('Portugués', 'Portugués'),
+        ('Francés', 'Francés'),
+        ('Alemán', 'Alemán'),
+        ('Italiano', 'Italiano'),
+        ('Británico', 'Británico'),
+        ('Irlandés', 'Irlandés'),
+        ('Belga', 'Belga'),
+        ('Neerlandés', 'Neerlandés'),
+        ('Suizo', 'Suizo'),
+        ('Austríaco', 'Austríaco'),
+        ('Sueco', 'Sueco'),
+        ('Noruego', 'Noruego'),
+        ('Danés', 'Danés'),
+        ('Finlandés', 'Finlandés'),
+        ('Polaco', 'Polaco'),
+        ('Rumano', 'Rumano'),
+        ('Ucraniano', 'Ucraniano'),
+        ('Ruso', 'Ruso'),
+        ('Turco', 'Turco'),
+        ('Griego', 'Griego'),
+        ('Marroquí', 'Marroquí'),
+        ('Argelino', 'Argelino'),
+        ('Tunecino', 'Tunecino'),
+        ('Egipcio', 'Egipcio'),
+        ('Sudafricano', 'Sudafricano'),
+        ('Nigeriano', 'Nigeriano'),
+        ('Ghanés', 'Ghanés'),
+        ('Kenia', 'Kenia'),
+        ('Keniano', 'Keniano'),
+        ('Tanzano', 'Tanzano'),
+        ('Ugandés', 'Ugandés'),
+        ('Etíope', 'Etíope'),
+        ('Camerunés', 'Camerunés'),
+        ('Senegalés', 'Senegalés'),
+        ('Israelí', 'Israelí'),
+        ('Jordano', 'Jordano'),
+        ('Sirio', 'Sirio'),
+        ('Irakí', 'Irakí'),
+        ('Iraní', 'Iraní'),
+        ('Arabe', 'Arabe'),
+        ('Saudí', 'Saudí'),
+        ('Emiratí', 'Emiratí'),
+        ('Pakistaní', 'Pakistaní'),
+        ('Indio', 'Indio'),
+        ('Bangladesí', 'Bangladesí'),
+        ('Sri Lanka', 'Sri Lanka'),
+        ('Srilanqués', 'Srilanqués'),
+        ('Nepalí', 'Nepalí'),
+        ('Chino', 'Chino'),
+        ('Japonés', 'Japonés'),
+        ('Coreano', 'Coreano'),
+        ('Filipino', 'Filipino'),
+        ('Vietnamita', 'Vietnamita'),
+        ('Tailandés', 'Tailandés'),
+        ('Malayo', 'Malayo'),
+        ('Indonesio', 'Indonesio'),
+        ('Singapurense', 'Singapurense'),
+        ('Australiano', 'Australiano'),
+        ('Neozelandés', 'Neozelandés'),
+        ('Otro', 'Otro'),
+    ]
+    NACIONALIDADES_CHOICES = tuple(
+        sorted(_NACIONALIDADES_RAW, key=lambda item: item[1].casefold())
+    )
+
+    # Sexo del huésped (para DNI peruanos y uso general).
+    SEXO_MASCULINO = 'M'
+    SEXO_FEMENINO = 'F'
+    SEXO_OTRO = 'O'
+    SEXO_PREFER_NO = 'N'
+    SEXO_CHOICES = [
+        (SEXO_MASCULINO, 'Masculino'),
+        (SEXO_FEMENINO, 'Femenino'),
+        (SEXO_OTRO, 'Otro'),
+        (SEXO_PREFER_NO, 'Prefiero no decir'),
+    ]
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -302,6 +411,14 @@ class Huesped(models.Model):
         max_length=100,
         default='Perú',
         verbose_name='Nacionalidad'
+    )
+
+    sexo = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=SEXO_CHOICES,
+        verbose_name='Sexo',
     )
     
     # ========== CAMPOS DE CONTACTO ==========
@@ -538,6 +655,9 @@ class Reserva(models.Model):
             models.Index(fields=['huesped']),
             models.Index(fields=['habitacion']),
             models.Index(fields=['tenant', 'estado']),
+            # Consultas por hotel + rango de fechas / listados recientes (muchos tenants).
+            models.Index(fields=['tenant', 'fecha_entrada', 'fecha_salida']),
+            models.Index(fields=['tenant', 'fecha_creacion']),
         ]
 
     def __str__(self):

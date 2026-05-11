@@ -4,6 +4,8 @@ Django settings for hotel_sistema project.
 
 from pathlib import Path
 
+from decouple import config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -69,13 +71,32 @@ WSGI_APPLICATION = 'hotel_sistema.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+#
+# Desarrollo: SQLite por defecto. Producción con muchos hoteles y tráfico concurrente:
+# use PostgreSQL (DATABASE_ENGINE=postgresql y variables POSTGRES_* en .env).
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+_database_engine = config('DATABASE_ENGINE', default='sqlite').strip().lower()
+
+if _database_engine in ('postgresql', 'postgres'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('POSTGRES_DB'),
+            'USER': config('POSTGRES_USER'),
+            'PASSWORD': config('POSTGRES_PASSWORD', default=''),
+            'HOST': config('POSTGRES_HOST', default='127.0.0.1'),
+            'PORT': config('POSTGRES_PORT', default='5432'),
+            'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=120, cast=int),
+        }
     }
-}
+else:
+    _sqlite_name = config('SQLITE_NAME', default='db.sqlite3')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / _sqlite_name,
+        }
+    }
 
 
 # Password validation

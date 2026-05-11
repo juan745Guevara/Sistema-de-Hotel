@@ -128,6 +128,28 @@ class ReservaForm(forms.ModelForm):
         ),
     )
 
+    huesped_nacionalidad = forms.ChoiceField(
+        label='Nacionalidad',
+        required=False,
+        choices=[('', '—')] + list(Huesped.NACIONALIDADES_CHOICES),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    huesped_fecha_nacimiento = forms.DateField(
+        label='Fecha de nacimiento',
+        required=False,
+        widget=forms.DateInput(
+            attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'bday'}
+        ),
+    )
+
+    huesped_sexo = forms.ChoiceField(
+        label='Sexo',
+        required=False,
+        choices=[('', '—')] + list(getattr(Huesped, 'SEXO_CHOICES', [])),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
     class Meta:
         model = Reserva
         fields = ['habitacion', 'fecha_entrada', 'fecha_salida', 'numero_huespedes', 'notas']
@@ -166,6 +188,12 @@ class ReservaForm(forms.ModelForm):
             self.fields['huesped_nombre'].initial = h.nombre
             self.fields['huesped_apellidos'].initial = h.apellidos
             self.fields['huesped_lugar_procedencia'].initial = h.lugar_procedencia
+            self.fields['huesped_nacionalidad'].initial = h.nacionalidad
+            self.fields['huesped_fecha_nacimiento'].initial = h.fecha_nacimiento
+            self.fields['huesped_sexo'].initial = h.sexo
+        elif not self.instance.pk:
+            # Defaults para que DNI pase válido incluso sin interacción del usuario.
+            self.fields['huesped_nacionalidad'].initial = Huesped.NACIONALIDAD_PERU
 
         self.order_fields(
             [
@@ -174,6 +202,9 @@ class ReservaForm(forms.ModelForm):
                 'huesped_nombre',
                 'huesped_apellidos',
                 'huesped_lugar_procedencia',
+                'huesped_nacionalidad',
+                'huesped_fecha_nacimiento',
+                'huesped_sexo',
                 'habitacion',
                 'fecha_entrada',
                 'fecha_salida',
@@ -203,6 +234,16 @@ class ReservaForm(forms.ModelForm):
             self.add_error('huesped_documento', e.messages[0])
             return cleaned_data
         cleaned_data['huesped_documento'] = doc
+
+        # Regla pedida: si el tipo de documento es DNI, nacionalidad = Perú.
+        if tipo == Huesped.TIPO_DOC_DNI:
+            cleaned_data['huesped_nacionalidad'] = Huesped.NACIONALIDAD_PERU
+        else:
+            nac = cleaned_data.get('huesped_nacionalidad') or ''
+            allowed = {c[0] for c in Huesped.NACIONALIDADES_CHOICES}
+            if nac not in allowed:
+                self.add_error('huesped_nacionalidad', 'Seleccione una nacionalidad válida.')
+            cleaned_data['huesped_nacionalidad'] = nac
 
         if self.instance.pk and self.instance.huesped_id:
             actual = self.instance.huesped
@@ -274,6 +315,9 @@ class ReservaForm(forms.ModelForm):
                     'nombre': d['huesped_nombre'],
                     'apellidos': d['huesped_apellidos'],
                     'lugar_procedencia': d['huesped_lugar_procedencia'],
+                    'nacionalidad': d.get('huesped_nacionalidad') or 'Perú',
+                    'fecha_nacimiento': d.get('huesped_fecha_nacimiento'),
+                    'sexo': d.get('huesped_sexo') or None,
                     'email': '',
                     'telefono': '',
                 },
@@ -284,6 +328,9 @@ class ReservaForm(forms.ModelForm):
                 huesped.lugar_procedencia = d['huesped_lugar_procedencia']
                 huesped.tipo_documento = tipo
                 huesped.documento_identidad = doc
+                huesped.nacionalidad = d.get('huesped_nacionalidad') or Huesped.NACIONALIDAD_PERU
+                huesped.fecha_nacimiento = d.get('huesped_fecha_nacimiento')
+                huesped.sexo = d.get('huesped_sexo') or None
                 huesped.save(
                     update_fields=[
                         'nombre',
@@ -291,6 +338,9 @@ class ReservaForm(forms.ModelForm):
                         'lugar_procedencia',
                         'tipo_documento',
                         'documento_identidad',
+                        'nacionalidad',
+                        'fecha_nacimiento',
+                        'sexo',
                         'fecha_actualizacion',
                     ]
                 )
@@ -302,6 +352,9 @@ class ReservaForm(forms.ModelForm):
             huesped.nombre = d['huesped_nombre']
             huesped.apellidos = d['huesped_apellidos']
             huesped.lugar_procedencia = d['huesped_lugar_procedencia']
+            huesped.nacionalidad = d.get('huesped_nacionalidad') or 'Perú'
+            huesped.fecha_nacimiento = d.get('huesped_fecha_nacimiento')
+            huesped.sexo = d.get('huesped_sexo') or None
             huesped.save(
                 update_fields=[
                     'tipo_documento',
@@ -309,6 +362,9 @@ class ReservaForm(forms.ModelForm):
                     'nombre',
                     'apellidos',
                     'lugar_procedencia',
+                    'nacionalidad',
+                    'fecha_nacimiento',
+                    'sexo',
                     'fecha_actualizacion',
                 ]
             )

@@ -1713,6 +1713,9 @@ def walkin(request):
         nombre = request.POST.get('nombre', '').strip()
         apellidos = request.POST.get('apellidos', '').strip()
         lugar_procedencia = request.POST.get('lugar_procedencia', '').strip()
+        nacionalidad_raw = request.POST.get('nacionalidad', '').strip()
+        fecha_nacimiento_raw = request.POST.get('fecha_nacimiento', '').strip()
+        sexo_raw = request.POST.get('sexo', '').strip()
         habitacion_id = request.POST.get('habitacion')
         numero_huespedes_str = request.POST.get('numero_huespedes', '1')
         noches_str = request.POST.get('noches', '1')
@@ -1731,6 +1734,24 @@ def walkin(request):
             fecha_hora_salida_prevista = None
             fecha_salida = None
             precio_total = None
+
+            fecha_nacimiento = None
+            if fecha_nacimiento_raw:
+                try:
+                    fecha_nacimiento = datetime.strptime(fecha_nacimiento_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    fecha_nacimiento = None
+
+            nacionalidad = nacionalidad_raw
+            if tipo_doc == Huesped.TIPO_DOC_DNI:
+                nacionalidad = Huesped.NACIONALIDAD_PERU
+            else:
+                allowed = {c[0] for c in Huesped.NACIONALIDADES_CHOICES}
+                if not nacionalidad or nacionalidad not in allowed:
+                    messages.error(request, 'Seleccione una nacionalidad válida.')
+                    return redirect('walkin')
+
+            sexo = sexo_raw or None
 
             numero_huespedes = int(numero_huespedes_str)
             deposito = Decimal(str(deposito_str))
@@ -1753,6 +1774,9 @@ def walkin(request):
                 huesped.lugar_procedencia = lugar_procedencia
                 huesped.tipo_documento = tipo_doc
                 huesped.documento_identidad = documento
+                huesped.nacionalidad = nacionalidad
+                huesped.fecha_nacimiento = fecha_nacimiento
+                huesped.sexo = sexo
                 huesped.save(
                     update_fields=[
                         'nombre',
@@ -1760,6 +1784,9 @@ def walkin(request):
                         'lugar_procedencia',
                         'tipo_documento',
                         'documento_identidad',
+                        'nacionalidad',
+                        'fecha_nacimiento',
+                        'sexo',
                         'fecha_actualizacion',
                     ]
                 )
@@ -1770,6 +1797,9 @@ def walkin(request):
                     nombre=nombre,
                     apellidos=apellidos,
                     lugar_procedencia=lugar_procedencia,
+                    nacionalidad=nacionalidad,
+                    fecha_nacimiento=fecha_nacimiento,
+                    sexo=sexo,
                     email='',
                     telefono='',
                 )
@@ -1910,6 +1940,7 @@ def walkin(request):
     context = {
         'habitaciones': habitaciones_disponibles,
         'entrada_automatica': timezone.localtime(timezone.now()),
+        'nacionalidades': Huesped.NACIONALIDADES_CHOICES,
     }
     return render(request, 'hotel/recepcion/walkin.html', context)
 

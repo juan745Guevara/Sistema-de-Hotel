@@ -1177,6 +1177,57 @@
             });
         });
     </script>
+    <script>
+        // Búsqueda "type-to-select" dentro del mismo <select> (sin inputs superpuestos).
+        document.addEventListener('DOMContentLoaded', function() {
+            const select = document.getElementById('id_huesped_nacionalidad');
+            const docSelect = document.getElementById('id_huesped_tipo_documento');
+            if (!select) return;
+
+            // Si el doc es DNI: forzar Perú y deshabilitar para evitar inconsistencias.
+            function syncNacionalidadPorDoc() {
+                if (!docSelect) return;
+                if (docSelect.value === 'dni') {
+                    select.value = 'Perú';
+                    select.disabled = true;
+                } else {
+                    select.disabled = false;
+                }
+            }
+            syncNacionalidadPorDoc();
+            docSelect?.addEventListener('change', syncNacionalidadPorDoc);
+
+            // Type-to-select: al escribir caracteres con el select enfocado, selecciona el primer match.
+            let typed = '';
+            let last = 0;
+            const reset = () => { typed = ''; };
+
+            select.addEventListener('keydown', function(e) {
+                if (select.disabled) return;
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                const key = e.key;
+                const now = Date.now();
+                if (now - last > 700) typed = '';
+                last = now;
+
+                if (key === 'Escape') { reset(); return; }
+                if (key === 'Backspace') { typed = typed.slice(0, -1); return; }
+
+                // Solo caracteres imprimibles (evitar flechas/enter).
+                if (key.length !== 1) return;
+
+                typed += key;
+                const q = typed.toLowerCase();
+
+                const options = Array.from(select.options || []).filter(o => o.value);
+                const match = options.find(o => (o.text || '').toLowerCase().includes(q));
+                if (match) select.value = match.value;
+            });
+
+            select.addEventListener('blur', reset);
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

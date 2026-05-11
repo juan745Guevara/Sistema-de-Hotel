@@ -3,5 +3,6 @@ django-crispy-forms==2.1
 crispy-bootstrap5==0.7
 python-decouple==3.8
 reportlab==4.2.5
-
+# Solo necesario si DATABASE_ENGINE=postgresql en .env
+psycopg2-binary>=2.9.9,<3
 

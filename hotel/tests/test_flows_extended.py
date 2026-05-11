@@ -308,6 +308,7 @@ class DocumentoExtranjeroTests(TenantFlowTestCase):
                 'huesped_nombre': 'Jane',
                 'huesped_apellidos': 'Extranj',
                 'huesped_lugar_procedencia': 'Buenos Aires',
+                'huesped_nacionalidad': 'Colombiano',
                 'habitacion': str(self.hab2.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),

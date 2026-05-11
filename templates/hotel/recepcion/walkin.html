@@ -73,6 +73,36 @@
                             <input type="text" name="lugar_procedencia" id="lugar_procedencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de origen" autocomplete="address-level2">
                         </div>
                     </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Nacionalidad</label>
+                            <select
+                                name="nacionalidad"
+                                id="walkin_nacionalidad"
+                                class="form-select"
+                            >
+                                {% for value,label in nacionalidades %}
+                                    <option value="{{ value }}" {% if value == 'Perú' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha de nacimiento</label>
+                            <input type="date" name="fecha_nacimiento" id="walkin_fecha_nacimiento" class="form-control"
+                                   autocomplete="bday">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sexo</label>
+                            <select name="sexo" id="walkin_sexo" class="form-select">
+                                <option value="" selected>—</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                                <option value="O">Otro</option>
+                                <option value="N">Prefiero no decir</option>
+                            </select>
+                        </div>
+                    </div>
                     
                     <h5 class="mb-3 mt-4">Habitación y estadía</h5>
                     <div class="row mb-3">
@@ -192,6 +222,7 @@
     const inp = document.getElementById('documento_identidad');
     const lbl = document.getElementById('walkin_doc_label');
     const help = document.getElementById('walkin_doc_help');
+    const nac = document.getElementById('walkin_nacionalidad');
     if (radios.length && inp && lbl) {
         function syncDocTipo() {
             const v = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
@@ -200,27 +231,77 @@
                 inp.placeholder = 'Ej. 40123456';
                 inp.setAttribute('inputmode', 'numeric');
                 if (help) help.textContent = 'DNI peruano: exactamente 8 dígitos.';
+                if (nac) {
+                    nac.value = 'Perú';
+                    nac.disabled = true;
+                }
             } else if (v === 'carnet_extranjeria') {
                 lbl.innerHTML = 'Número de carné de extranjería (CE) <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. 001-123456';
                 inp.removeAttribute('inputmode');
                 if (help) help.textContent = 'CE u otro formato según Migraciones; letras, números, guiones o puntos (4–50 caracteres).';
+                if (nac) {
+                    nac.disabled = false;
+                }
             } else if (v === 'pasaporte') {
                 lbl.innerHTML = 'Número de pasaporte <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. AB1234567';
                 inp.removeAttribute('inputmode');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
+                if (nac) {
+                    nac.disabled = false;
+                }
             } else {
                 lbl.innerHTML = 'Número de documento <span class="text-danger">*</span>';
                 inp.placeholder = 'Documento oficial';
                 inp.removeAttribute('inputmode');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
+                if (nac) {
+                    nac.disabled = false;
+                }
             }
         }
         radios.forEach(function (r) { r.addEventListener('change', syncDocTipo); });
         syncDocTipo();
     }
 })();
+
+// Type-to-search dentro del mismo <select> (busca con el teclado).
+document.addEventListener('DOMContentLoaded', function () {
+    const nac = document.getElementById('walkin_nacionalidad');
+    if (!nac) return;
+
+    let typed = '';
+    let last = 0;
+
+    nac.addEventListener('keydown', function (e) {
+        if (nac.disabled) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const key = e.key;
+        const now = Date.now();
+        if (now - last > 700) typed = '';
+        last = now;
+
+        if (key === 'Backspace') {
+            typed = typed.slice(0, -1);
+            return;
+        }
+        if (key === 'Escape') {
+            typed = '';
+            return;
+        }
+
+        // Solo letras/números (caracteres imprimibles).
+        if (key.length !== 1) return;
+
+        typed += key;
+        const q = typed.toLowerCase();
+        const options = Array.from(nac.options).filter(o => o.value);
+        const match = options.find(o => (o.text || '').toLowerCase().includes(q));
+        if (match) nac.value = match.value;
+    });
+});
 
 (function () {
     var rN = document.getElementById('tipo_noches');
