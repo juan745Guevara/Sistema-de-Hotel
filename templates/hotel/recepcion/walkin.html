@@ -54,7 +54,7 @@
                         <div class="col-md-6">
                             <label class="form-label" id="walkin_doc_label">Número de DNI <span class="text-danger">*</span></label>
                             <input type="text" name="documento_identidad" id="documento_identidad" class="form-control"
-                                   maxlength="50" required autofocus placeholder="Ej. 40123456" autocomplete="off" inputmode="numeric">
+                                   maxlength="8" required autofocus placeholder="Ej. 40123456" autocomplete="off" inputmode="numeric">
                             <small class="text-muted d-block mt-1" id="walkin_doc_help">DNI: 8 dígitos. Si el documento ya existía con el mismo tipo, se actualizan nombre, residencia y motivo de viaje.</small>
                         </div>
                         <div class="col-md-6">
@@ -239,14 +239,24 @@
     const nacHelp = document.getElementById('walkin_nac_help');
     let prevTipo = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
     if (radios.length && inp && lbl) {
+        function sanitizeDniWalkin() {
+            const v = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
+            if (v !== 'dni') return;
+            const digits = String(inp.value || '').replace(/\D/g, '').slice(0, 8);
+            if (inp.value !== digits) inp.value = digits;
+        }
+        inp.addEventListener('input', sanitizeDniWalkin);
+        inp.addEventListener('paste', function () { setTimeout(sanitizeDniWalkin, 0); });
         function syncDocTipo() {
             const v = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
             if (v === 'dni') {
                 lbl.innerHTML = 'Número de DNI <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. 40123456';
+                inp.setAttribute('maxlength', '8');
                 inp.setAttribute('inputmode', 'numeric');
                 inp.setAttribute('required', 'required');
-                if (help) help.textContent = 'DNI peruano: exactamente 8 dígitos.';
+                sanitizeDniWalkin();
+                if (help) help.textContent = 'DNI peruano: solo números, máximo 8 dígitos.';
                 if (nac) {
                     nac.value = 'Perú';
                     nac.disabled = true;
@@ -256,6 +266,7 @@
             } else if (v === 'carnet_extranjeria') {
                 lbl.innerHTML = 'Número de carné de extranjería (CE) <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. 001-123456';
+                inp.setAttribute('maxlength', '50');
                 inp.removeAttribute('inputmode');
                 inp.setAttribute('required', 'required');
                 if (help) help.textContent = 'CE u otro formato según Migraciones; letras, números, guiones o puntos (4–50 caracteres).';
@@ -270,6 +281,7 @@
             } else if (v === 'pasaporte') {
                 lbl.innerHTML = 'Número de pasaporte <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. AB1234567';
+                inp.setAttribute('maxlength', '50');
                 inp.removeAttribute('inputmode');
                 inp.setAttribute('required', 'required');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
@@ -284,6 +296,7 @@
             } else {
                 lbl.innerHTML = 'Número de documento <span class="text-danger">*</span>';
                 inp.placeholder = 'Documento oficial';
+                inp.setAttribute('maxlength', '50');
                 inp.removeAttribute('inputmode');
                 inp.setAttribute('required', 'required');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';

@@ -1,8 +1,16 @@
-Django==4.2.7
-django-crispy-forms==2.1
-crispy-bootstrap5==0.7
-python-decouple==3.8
-reportlab==4.2.5
-# Solo necesario si DATABASE_ENGINE=postgresql en .env
-psycopg2-binary>=2.9.9,<3
+# --- Core (Django 4.2 LTS) ---
+Django==4.2.30
 
+# --- Formularios (Bootstrap 5) ---
+django-crispy-forms==2.3
+crispy-bootstrap5==2024.10
+
+# --- Configuración (.env) ---
+python-decouple==3.8
+
+# --- PDF (libro de registro / reportes) ---
+reportlab==4.4.10
+
+# --- Base de datos (opcional) ---
+# Solo instalar si en .env usas DATABASE_ENGINE=postgresql
+psycopg2-binary>=2.9.9,<3

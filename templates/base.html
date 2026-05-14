@@ -1178,10 +1178,43 @@
         });
     </script>
     <script>
-        // Búsqueda "type-to-select" dentro del mismo <select> (sin inputs superpuestos).
+        // DNI (8 dígitos) en reserva crear/editar + nacionalidad / type-to-select.
         document.addEventListener('DOMContentLoaded', function() {
-            const select = document.getElementById('id_huesped_nacionalidad');
             const docSelect = document.getElementById('id_huesped_tipo_documento');
+            const docInput = document.getElementById('id_huesped_documento');
+            if (docSelect && docInput) {
+                function isDni() {
+                    return docSelect.value === 'dni';
+                }
+                function sanitizeDniValue() {
+                    if (!isDni()) return;
+                    const digits = String(docInput.value || '').replace(/\D/g, '').slice(0, 8);
+                    if (docInput.value !== digits) {
+                        docInput.value = digits;
+                    }
+                }
+                function applyDocumentoAttrs() {
+                    if (isDni()) {
+                        docInput.setAttribute('maxlength', '8');
+                        docInput.setAttribute('inputmode', 'numeric');
+                        sanitizeDniValue();
+                    } else {
+                        docInput.setAttribute('maxlength', '50');
+                        docInput.removeAttribute('inputmode');
+                    }
+                }
+                docSelect.addEventListener('change', function() {
+                    sanitizeDniValue();
+                    applyDocumentoAttrs();
+                });
+                docInput.addEventListener('input', sanitizeDniValue);
+                docInput.addEventListener('paste', function() {
+                    setTimeout(sanitizeDniValue, 0);
+                });
+                applyDocumentoAttrs();
+            }
+
+            const select = document.getElementById('id_huesped_nacionalidad');
             if (!select) return;
 
             let prevTipo = docSelect?.value || 'dni';

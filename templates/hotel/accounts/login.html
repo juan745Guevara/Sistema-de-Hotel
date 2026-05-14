@@ -1,65 +1,56 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar sesión — Sistema Hotelero</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light d-flex align-items-center min-vh-100">
-    <div class="container" style="max-width: 420px;">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-                <h1 class="h4 mb-2">Paso 2: Usuario, rol y contraseña</h1>
-                <p class="text-muted small mb-3">
-                    Hotel: <strong>{{ login_tenant.name }}</strong>
-                    <span class="text-secondary">({{ login_tenant.slug }})</span>
-                </p>
-                <p class="small text-secondary mb-3">
-                    Elige el <strong>rol</strong> con el que trabajas en este hotel y escribe tu <strong>nombre de usuario</strong> y <strong>contraseña</strong> (si te enviaron un enlace de acceso, el hotel ya está seleccionado).
-                </p>
-                <p class="small mb-3">
-                    <a href="{% url 'accounts_hotel_identify' %}?cambiar=1">← Elegir otro hotel</a>
-                </p>
-                <form method="post" action="">
-                    {% csrf_token %}
-                    {% if next %}
-                    <input type="hidden" name="next" value="{{ next }}">
-                    {% endif %}
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-                    {% endif %}
-                    <div class="mb-3">
-                        <label class="form-label" for="id_role">Rol en este hotel</label>
-                        <select name="role" id="id_role" class="form-select" required>
-                            <option value="" disabled {% if not posted_role %}selected{% endif %}>Elige tu rol</option>
-                            {% for value, label in role_choices %}
-                            <option value="{{ value }}" {% if posted_role == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="id_username">Nombre de usuario</label>
-                        <input type="text" name="username" id="id_username" class="form-control {% if form.username.errors %}is-invalid{% endif %}" autocomplete="username" required autofocus spellcheck="false" placeholder="ej. recepcion1" value="{{ form.username.value|default:'' }}">
-                        {% if form.username.errors %}
-                        <div class="invalid-feedback d-block">{{ form.username.errors|striptags }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="id_password">Contraseña</label>
-                        <input type="password" name="password" id="id_password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" autocomplete="current-password" required>
-                        {% if form.password.errors %}
-                        <div class="invalid-feedback d-block">{{ form.password.errors|striptags }}</div>
-                        {% endif %}
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Entrar</button>
-                </form>
-                <hr class="my-4">
-                <p class="mb-0 text-center small text-muted">
-                    Alta de hoteles deshabilitada en web. Solicita al administrador la creación por consola.
-                </p>
-            </div>
-        </div>
+{% extends "hotel/accounts/base_auth.html" %}
+{% block auth_title %}Iniciar sesión — HotelFlow Systems{% endblock %}
+{% block auth_content %}
+<div class="card-body px-3 py-4 px-sm-4 py-sm-4 p-lg-5">
+    <p class="auth-eyebrow mb-0">Acceso</p>
+    <h1 class="auth-heading mb-3">Usuario y contraseña</h1>
+    <div class="rounded-3 px-3 py-2 mb-3 small overflow-hidden min-w-0" style="background: rgba(64, 169, 179, 0.1); border: 1px solid rgba(64, 169, 179, 0.25);">
+        <span class="text-muted">Hotel activo:</span>
+        <strong class="d-block text-break">{{ login_tenant.name }}</strong>
+        <span class="text-secondary text-break d-inline-block">{{ login_tenant.slug }}</span>
     </div>
-</body>
-</html>
+    <p class="small text-secondary mb-3">
+        Elige el <strong>rol</strong> con el que trabajas en este hotel y escribe tu <strong>usuario</strong> y <strong>contraseña</strong>. Si usaste un enlace de acceso, el hotel ya está seleccionado.
+    </p>
+    <p class="small mb-4">
+        <a href="{% url 'accounts_hotel_identify' %}?cambiar=1"><i class="bi bi-arrow-left me-1"></i>Elegir otro hotel</a>
+    </p>
+    <form method="post" action="">
+        {% csrf_token %}
+        {% if next %}
+        <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger border-0 rounded-3 small">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label" for="id_role">Rol en este hotel</label>
+            <select name="role" id="id_role" class="form-select" required>
+                <option value="" disabled {% if not posted_role %}selected{% endif %}>Elige tu rol</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if posted_role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="id_username">Nombre de usuario</label>
+            <input type="text" name="username" id="id_username" class="form-control {% if form.username.errors %}is-invalid{% endif %}" autocomplete="username" required autofocus spellcheck="false" placeholder="ej. recepcion1" value="{{ form.username.value|default:'' }}">
+            {% if form.username.errors %}
+            <div class="invalid-feedback d-block">{{ form.username.errors|striptags }}</div>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="id_password">Contraseña</label>
+            <input type="password" name="password" id="id_password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" autocomplete="current-password" required>
+            {% if form.password.errors %}
+            <div class="invalid-feedback d-block">{{ form.password.errors|striptags }}</div>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-hf-primary w-100">Entrar</button>
+    </form>
+    <hr class="my-4 auth-muted-hr">
+    <p class="mb-0 text-center small text-muted">
+        Alta de hoteles deshabilitada en web. Solicita al administrador la creación por consola.
+    </p>
+</div>
+{% endblock %}

@@ -1,224 +1,101 @@
-# Sistema Hotelero
+# Sistema Hotelero (HotelFlow)
 
-Sistema de gestión hotelera desarrollado con Django y SQLite que soluciona los problemas principales de administración de hoteles.
-
-## Características Principales
-
-### 🚀 Funcionalidades de Recepción (Nuevas)
-
-#### Dashboard de Recepción
-- Vista general con tareas del día
-- Check-ins y check-outs pendientes
-- Estadísticas rápidas de habitaciones
-- Acciones rápidas con botones grandes
-
-#### Proceso Rápido de Recepción
-- **Walk-in**: Check-in sin reserva previa
-- Validación inteligente de disponibilidad
-
-#### Check-in/Check-out Rápido
-- **Check-in Rápido**: Lista de pendientes con acción en 1 clic
-- **Check-out Rápido**: Cálculo automático (precio - depósito)
-- Formularios simplificados con campos esenciales
-- Auto-completar empleado y fecha/hora
-
-#### Búsqueda Global
-- Búsqueda rápida en el header (Ctrl+K)
-- Busca huéspedes, reservas y habitaciones
-- Resultados instantáneos con enlaces directos
-
-#### Vista de Habitaciones
-- **Tablero Kanban**: Habitaciones organizadas por estado
-- Vista visual con colores por estado
-- Información rápida de cada habitación
-
-#### Calendario de Ocupación
-- Vista mensual de reservas
-- Ver ocupación por día
-- Navegación entre meses
-
-### 1. Gestión de Reservas
-- Crear, editar y cancelar reservas
-- Validación automática de disponibilidad
-- Cálculo automático de precios
-- Estados de reserva (Pendiente, Confirmada, Check-in, Check-out, Cancelada)
-- Filtros por estado y fechas
-
-### 2. Control de Habitaciones y Disponibilidad
-- Gestión completa de habitaciones
-- Estados: Disponible, Ocupada, Reservada, Mantenimiento, Limpieza
-- Verificación de disponibilidad en tiempo real
-- Consulta de disponibilidad por rango de fechas
-- Tipos de habitación: Sencilla, Doble, Suite, Presidencial
-
-### 3. Check-in / Check-out
-- Proceso completo de check-in con registro de documentos y depósitos
-- Check-out con registro de pagos, métodos de pago y calificaciones
-- Actualización automática de estados de habitaciones
-- Historial completo de check-ins y check-outs
-
-### 4. Gestión de Huéspedes
-- Registro completo de información de huéspedes
-- Historial de reservas por huésped
-- Preferencias y notas especiales
-- Búsqueda avanzada de huéspedes
-- Estadísticas por huésped
-
-### 5. Reportes y Análisis
-- **Reporte de Ocupación**: Análisis de ocupación por día con porcentajes
-- **Reporte de Ingresos**: Ingresos por períodos, métodos de pago y tipos de habitación
-- **Reporte de Huéspedes**: Top clientes, estadísticas y nacionalidades
+Aplicación web de gestión hotelera con **Django 4.2**, multi-hotel (tenant), roles por hotel y flujos de recepción (reservas, walk-in, check-in/out, reportes).
 
 ## Requisitos
 
-- Python 3.8 o superior
-- Django 4.2.7
-- SQLite (incluido en Python)
-- python-decouple (opcional, para variables de entorno)
+| Componente | Versión recomendada |
+|------------|---------------------|
+| Python | 3.10 o superior (compatible con Django 4.2) |
+| Base de datos | SQLite por defecto; **PostgreSQL** opcional vía `.env` |
+| Navegador | Moderno (ES6; Bootstrap 5) |
 
-## Instalación
+Las dependencias Python están en `requirements.txt`.
 
-1. Clonar o descargar el proyecto
+## Instalación rápida
 
-2. Crear un entorno virtual (recomendado):
 ```bash
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
-```
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+# source venv/bin/activate
 
-3. Instalar dependencias:
-```bash
 pip install -r requirements.txt
 ```
 
-4. Realizar migraciones:
+Opcional: crea un archivo **`.env`** en la raíz del proyecto con variables como `SECRET_KEY`, `DEBUG`, `DATABASE_ENGINE`, `POSTGRES_*`, `SQLITE_NAME`, etc. El proyecto usa **python-decouple** para leerlas (por ejemplo `DATABASE_ENGINE=postgresql` junto con `POSTGRES_DB`, `POSTGRES_USER`, …).
+
 ```bash
-python manage.py makemigrations
 python manage.py migrate
-```
-
-5. Crear un superusuario (opcional, para acceder al admin):
-```bash
-python manage.py createsuperuser
-```
-
-6. Ejecutar el servidor de desarrollo:
-```bash
+python manage.py createsuperuser   # acceso al admin de Django
 python manage.py runserver
 ```
 
-7. Acceder a la aplicación:
-- Sistema: http://127.0.0.1:8000/
-- Admin: http://127.0.0.1:8000/admin/
+- **Aplicación:** http://127.0.0.1:8000/  
+- **Admin:** http://127.0.0.1:8000/admin/  
 
-## Estructura del Proyecto
+El acceso al panel del hotel usa un flujo propio: identificación del hotel (slug) → usuario, rol y contraseña (`/accounts/hotel/`, etc.). La creación de hoteles o cuentas desde la web puede estar deshabilitada según la configuración; en muchos despliegues el alta se hace por consola.
+
+## Características principales
+
+### Multi-hotel y permisos
+
+- Varios **hoteles (tenants)** en la misma base de datos; cada petición trabaja en el hotel activo de la sesión.
+- **Usuarios y membresías** por hotel con roles (p. ej. administrador, recepción, limpieza) y permisos por vista.
+
+### Recepción y operación
+
+- **Dashboard** de recepción con tareas y accesos rápidos.
+- **Reservas:** crear, editar, cancelar; validación de disponibilidad y capacidad; precios por noche; estadía por noches u horas según flujos soportados.
+- **Walk-in:** check-in sin reserva previa con datos de huésped y habitación.
+- **Check-in / check-out** (incluidos flujos rápidos y listas), depósitos y medios de pago (incl. mixtos donde aplique).
+- **Huéspedes:** tipo de documento (DNI, CE, pasaporte, otro); **DNI Perú: 8 dígitos numéricos** (validación en servidor y restricción en formularios).
+- **Habitaciones:** estados (disponible, ocupada, reservada, mantenimiento, limpieza), tipos y precios.
+- **Búsqueda rápida** en cabecera (atajo tipo Ctrl+K según plantilla).
+- **Calendario de ocupación** mensual.
+- **Tablero de habitaciones** y lista de limpieza.
+
+### Reportes
+
+- **Estadísticas de ocupación** (cupo nocturno, evolución, comparación con periodo anterior, desglose por tipo).
+- **Ingresos** (reservas por fecha de entrada, cobros por ventana de fecha/hora de turno, medios de pago, depósitos).
+- **Libro de registro** con exportación a **PDF** (ReportLab).
+
+### Interfaz
+
+- **Bootstrap 5** + **Bootstrap Icons**; formularios con **django-crispy-forms** y **crispy-bootstrap5**.
+- Pantallas de inicio de sesión con identidad visual (logo en `static/hotel/`).
+
+## Configuración útil (`settings`)
+
+- `TIME_ZONE`: por defecto `America/Lima`.
+- `STATICFILES_DIRS`: carpeta `static/` del proyecto (incluye branding para login).
+- Caché en memoria local (`LocMemCache`) para desarrollo.
+
+Para **producción**: `DEBUG=False`, `SECRET_KEY` seguro, `ALLOWED_HOSTS`, HTTPS, base de datos adecuada (PostgreSQL recomendado con concurrencia) y `collectstatic` + servidor de archivos estáticos.
+
+## Estructura del repositorio (resumen)
 
 ```
-sistema hotel/
-├── hotel/                    # Aplicación principal
-│   ├── models.py            # Modelos: Habitación, Huésped, Reserva, CheckIn, CheckOut
-│   ├── views.py             # Vistas de todas las funcionalidades
-│   ├── forms.py             # Formularios para todos los modelos
-│   ├── urls.py              # URLs de la aplicación
-│   └── admin.py             # Configuración del admin de Django
-├── hotel_sistema/           # Configuración del proyecto
-│   ├── settings.py          # Configuración (SQLite, apps, etc.)
-│   └── urls.py              # URLs principales
-├── templates/               # Templates HTML
-│   ├── base.html           # Template base
-│   └── hotel/              # Templates de la aplicación
+├── hotel/                 # App principal (modelos, vistas, formularios, URLs, PDF, tests)
+├── hotel_sistema/       # Proyecto Django (settings, urls, wsgi)
+├── templates/             # Plantillas globales y por app (`hotel/`, `hotel/accounts/`, …)
+├── static/                # Estáticos de desarrollo (p. ej. logo)
 ├── manage.py
 ├── requirements.txt
 └── README.md
 ```
 
-## Modelos de Datos
+## Comandos de utilidad
 
-### Habitación
-- Número, tipo, estado, capacidad
-- Precio por noche, descripción, servicios
+| Comando | Descripción |
+|---------|-------------|
+| `python manage.py test` | Suite de tests |
+| `python manage.py check` | Comprobaciones del sistema Django |
 
-### Huésped
-- Información personal completa
-- Documento de identidad único
-- Preferencias y notas
-
-### Reserva
-- Relación con huésped y habitación
-- Fechas de entrada y salida
-- Cálculo automático de precio total
-- Estados de reserva
-
-### CheckIn
-- Registro de check-in con fecha/hora
-- Documentos recibidos, depósito
-- Empleado que realizó el check-in
-
-### CheckOut
-- Registro de check-out con fecha/hora
-- Total pagado, método de pago
-- Calificación, daños observados
-
-## Funcionalidades Clave
-
-### Validaciones Automáticas
-- Verificación de disponibilidad antes de crear reservas
-- Validación de capacidad de habitaciones
-- Validación de fechas (entrada < salida)
-- Prevención de sobreventa
-
-### Cálculos Automáticos
-- Precio total de reservas (noches × precio/noche)
-- Número de noches
-- Ocupación diaria
-- Ingresos totales
-
-### Estados Automáticos
-- Actualización de estado de habitaciones según reservas
-- Cambio de estado de reservas al hacer check-in/check-out
-- Gestión de estados de limpieza y mantenimiento
-
-## Uso del Sistema
-
-### Para Recepcionistas (Flujo Rápido)
-
-1. **Dashboard**: Ver tareas del día al iniciar sesión
-2. **Check-in Rápido**: 
-   - Ver lista de check-ins pendientes
-   - Clic en "Check-in" para proceso rápido
-3. **Check-out Rápido**: 
-   - Ver lista de check-outs del día
-   - Cálculo automático de total a pagar
-4. **Walk-in**: Para huéspedes sin reserva previa
-5. **Búsqueda**: Usar Ctrl+K o barra de búsqueda en header
-
-### Flujo Tradicional
-
-1. **Configurar Habitaciones**: Crear las habitaciones del hotel con sus características
-2. **Registrar Huéspedes**: Agregar información de huéspedes
-3. **Crear Reservas**: Realizar reservas verificando disponibilidad
-4. **Check-in**: Registrar el ingreso de huéspedes
-5. **Check-out**: Registrar la salida y pago
-6. **Consultar Reportes**: Analizar ocupación, ingresos y estadísticas
-
-## Tecnologías Utilizadas
-
-- **Backend**: Django 4.2.7
-- **Base de Datos**: SQLite
-- **Frontend**: Bootstrap 5
-- **Formularios**: Django Crispy Forms
-- **Iconos**: Bootstrap Icons
-- **Cache**: Django LocMemCache
-
-## Notas
-
-- El sistema está configurado para desarrollo. Para producción, cambiar `DEBUG = False` en `settings.py`
-- Cambiar `SECRET_KEY` en producción
-- SQLite es adecuado para desarrollo y pequeños hoteles. Para producción, considerar PostgreSQL o MySQL
-- El sistema no incluye autenticación de usuarios. Se puede agregar fácilmente con Django Auth
+Existen comandos de gestión en `hotel/management/commands/` (por ejemplo datos demo u operaciones de limpieza); revisa su ayuda con `python manage.py <comando> --help`.
 
 ## Licencia
 
-Este proyecto es de código abierto y está disponible para uso educativo y comercial.
-
-
+Uso según la licencia indicada por los propietarios del repositorio (educativo, comercial u otro, si está definido en el proyecto).

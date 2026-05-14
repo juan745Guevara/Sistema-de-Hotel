@@ -1,0 +1,276 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block auth_title %}HotelFlow Systems{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --hf-navy: #1a3055;
+        --hf-navy-deep: #12243d;
+        --hf-teal: #40a9b3;
+        --hf-teal-bright: #52c4cf;
+        --hf-surface: #f4f7fb;
+      }
+      .auth-root {
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: var(--hf-navy);
+        background: var(--hf-surface);
+        overflow-x: clip;
+      }
+      .auth-layout {
+        min-height: 100vh;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+      }
+      .auth-brand {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(165deg, var(--hf-navy-deep) 0%, var(--hf-navy) 42%, #1e4a5c 100%);
+        color: #fff;
+        padding: 1.5rem 1.15rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .auth-brand::before {
+        content: "";
+        position: absolute;
+        inset: -40% -20% auto -20%;
+        height: 70%;
+        background: radial-gradient(ellipse at 50% 0%, rgba(64, 169, 179, 0.35) 0%, transparent 62%);
+        pointer-events: none;
+      }
+      .auth-brand::after {
+        content: "";
+        position: absolute;
+        right: -30%;
+        bottom: -25%;
+        width: 70%;
+        height: 55%;
+        background: radial-gradient(circle, rgba(64, 169, 179, 0.12) 0%, transparent 70%);
+        pointer-events: none;
+      }
+      .auth-brand-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 22rem;
+      }
+      .auth-logo {
+        width: min(100%, 220px);
+        height: auto;
+        display: block;
+        margin: 0 auto 1rem;
+        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.22));
+      }
+      .auth-tagline {
+        font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        opacity: 0.88;
+        margin: 0;
+        line-height: 1.45;
+        max-width: 20rem;
+      }
+      .auth-main {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+        padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+        padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+      }
+      @media (min-width: 768px) {
+        .auth-brand {
+          flex: 0 0 38%;
+          max-width: 38%;
+          min-height: 100vh;
+          min-height: 100dvh;
+          padding: 1.75rem 1.25rem;
+        }
+        .auth-logo {
+          width: min(100%, 240px);
+          margin-bottom: 1.1rem;
+        }
+        .auth-main {
+          padding: max(1.5rem, env(safe-area-inset-top, 0px)) max(1.5rem, env(safe-area-inset-right, 0px))
+            max(2rem, env(safe-area-inset-bottom, 0px)) max(1.5rem, env(safe-area-inset-left, 0px));
+        }
+      }
+      @media (min-width: 992px) {
+        .auth-brand {
+          flex: 0 0 42%;
+          max-width: 42%;
+          padding: 2.5rem 2rem;
+        }
+        .auth-logo {
+          width: min(100%, 280px);
+          margin-bottom: 1.25rem;
+        }
+        .auth-main {
+          padding: max(2rem, env(safe-area-inset-top, 0px)) max(2rem, env(safe-area-inset-right, 0px))
+            max(2.5rem, env(safe-area-inset-bottom, 0px)) max(2rem, env(safe-area-inset-left, 0px));
+        }
+      }
+      @media (max-height: 520px) and (orientation: landscape) and (max-width: 767.98px) {
+        .auth-main {
+          align-items: flex-start;
+        }
+        .auth-mobile-brand {
+          margin-bottom: 0.5rem !important;
+        }
+        .auth-logo-sm {
+          width: min(160px, 42vw) !important;
+        }
+      }
+      @media (max-height: 480px) and (min-width: 768px) {
+        .auth-brand {
+          padding: 1rem 0.85rem !important;
+        }
+        .auth-logo {
+          width: min(100%, 180px) !important;
+          margin-bottom: 0.5rem !important;
+        }
+        .auth-tagline {
+          font-size: 0.78rem !important;
+        }
+      }
+      .auth-main-inner {
+        width: 100%;
+        max-width: min(28rem, 100%);
+      }
+      .auth-mobile-brand {
+        padding-top: max(0.15rem, env(safe-area-inset-top, 0px));
+        margin-bottom: 1rem;
+      }
+      .auth-logo-sm {
+        width: min(200px, 78vw);
+        max-width: 100%;
+        height: auto;
+      }
+      .auth-card {
+        border-radius: 1.15rem !important;
+        box-shadow: 0 4px 6px rgba(26, 48, 85, 0.04), 0 18px 48px rgba(26, 48, 85, 0.1) !important;
+        border: 1px solid rgba(26, 48, 85, 0.08) !important;
+        background: #fff;
+      }
+      .auth-card-accent {
+        height: 4px;
+        background: linear-gradient(90deg, var(--hf-teal) 0%, var(--hf-teal-bright) 50%, var(--hf-navy) 100%);
+        border-radius: 1.15rem 1.15rem 0 0;
+      }
+      .auth-eyebrow {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--hf-teal);
+        margin-bottom: 0.35rem;
+      }
+      .auth-heading {
+        font-size: clamp(1.15rem, 4.2vw, 1.4rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--hf-navy);
+        line-height: 1.25;
+        word-wrap: break-word;
+      }
+      .auth-root .form-control,
+      .auth-root .form-select {
+        border-radius: 0.65rem;
+        border-color: rgba(26, 48, 85, 0.14);
+        padding: 0.6rem 0.9rem;
+        min-height: 2.75rem;
+        font-size: 1rem;
+      }
+      .auth-root .form-control:focus,
+      .auth-root .form-select:focus {
+        border-color: var(--hf-teal);
+        box-shadow: 0 0 0 0.2rem rgba(64, 169, 179, 0.22);
+      }
+      .auth-root .form-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--hf-navy);
+      }
+      .btn-hf-primary {
+        color: #fff;
+        background-color: var(--hf-navy);
+        border-color: var(--hf-navy);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        border-radius: 0.65rem;
+        padding-block: max(0.65rem, 12px);
+        min-height: 2.75rem;
+      }
+      .auth-root .list-group-item {
+        min-height: 3rem;
+        word-break: break-word;
+      }
+      .auth-root .list-group-item .form-check-input {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-top: 0.15rem;
+      }
+      .btn-hf-primary:hover,
+      .btn-hf-primary:focus {
+        color: #fff;
+        background-color: var(--hf-navy-deep);
+        border-color: var(--hf-navy-deep);
+      }
+      .btn-hf-primary:active,
+      .btn-hf-primary.active {
+        color: #fff !important;
+        background-color: var(--hf-navy-deep) !important;
+        border-color: var(--hf-navy-deep) !important;
+      }
+      .auth-root a:not(.btn) {
+        color: var(--hf-teal);
+        font-weight: 500;
+        text-decoration: none;
+      }
+      .auth-root a:not(.btn):hover {
+        color: var(--hf-navy);
+        text-decoration: underline;
+      }
+      .auth-muted-hr {
+        border-color: rgba(26, 48, 85, 0.1);
+        opacity: 1;
+      }
+    </style>
+    {% block auth_extra_head %}{% endblock %}
+</head>
+<body class="auth-root">
+<div class="auth-layout d-flex flex-column flex-md-row">
+    <aside class="auth-brand d-none d-md-flex">
+        <div class="auth-brand-inner">
+            <img src="{% static 'hotel/Hotel-flow.jpeg' %}" width="560" height="200" class="auth-logo" alt="HotelFlow Systems" decoding="async">
+            <p class="auth-tagline">Gestión hotelera clara, segura y al día.</p>
+        </div>
+    </aside>
+    <main class="auth-main w-100">
+        <div class="auth-main-inner mx-auto">
+            <div class="auth-mobile-brand d-md-none text-center px-1">
+                <img src="{% static 'hotel/Hotel-flow.jpeg' %}" width="440" height="160" class="auth-logo-sm mx-auto d-block" alt="HotelFlow Systems" decoding="async">
+            </div>
+            <div class="auth-card card overflow-hidden">
+                <div class="auth-card-accent" aria-hidden="true"></div>
+                {% block auth_content %}{% endblock %}
+            </div>
+            {% block auth_below_card %}{% endblock %}
+        </div>
+    </main>
+</div>
+</body>
+</html>
