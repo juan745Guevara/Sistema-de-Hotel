@@ -1,0 +1,213 @@
+<style>
+  /* Ámbito: solo vistas que envuelvan con .mod-reportes */
+  .mod-reportes .rep-breadcrumb {
+    --bs-breadcrumb-divider: "›";
+    font-size: 0.8125rem;
+    margin-bottom: 0.75rem;
+  }
+  .mod-reportes .rep-hero {
+    border-radius: 1rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(
+      125deg,
+      rgba(var(--bs-primary-rgb), 0.08) 0%,
+      var(--bs-body-bg) 48%,
+      var(--bs-body-bg) 100%
+    );
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .mod-reportes .rep-hero-title {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .mod-reportes .rep-hero-eyebrow {
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    font-size: 0.7rem !important;
+  }
+  .mod-reportes .rep-badge-soft {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.8125rem;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    color: var(--bs-body-color);
+  }
+  .mod-reportes .rep-card-lite {
+    border-radius: 0.875rem;
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .mod-reportes .rep-card-lite .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    padding: 0.85rem 1.15rem;
+  }
+  .mod-reportes .rep-card-lite .card-header h2,
+  .mod-reportes .rep-card-lite .card-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .mod-reportes .rep-card-lite .card-body {
+    padding: 1.1rem 1.15rem;
+  }
+  .mod-reportes .rep-section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.75rem;
+  }
+  .mod-reportes .rep-kpi {
+    border-radius: 0.75rem;
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    padding: 0.9rem 1rem;
+    height: 100%;
+    background: var(--bs-body-bg);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .mod-reportes .rep-kpi:hover {
+    border-color: rgba(var(--bs-primary-rgb), 0.35);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  .mod-reportes .rep-kpi-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    margin-bottom: 0.55rem;
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: rgb(var(--bs-primary-rgb));
+  }
+  .mod-reportes .rep-kpi-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  .mod-reportes .rep-kpi-hint {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    margin-top: 0.35rem;
+    line-height: 1.35;
+  }
+  .mod-reportes .rep-kpi-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    margin-bottom: 0.25rem;
+  }
+  .mod-reportes .rep-chip {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    background: var(--bs-body-bg);
+    min-height: 4.25rem;
+  }
+  .mod-reportes .rep-chip-num {
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .mod-reportes .rep-table-wrap {
+    max-height: min(52vh, 480px);
+    overflow: auto;
+    border-radius: 0 0 0.5rem 0.5rem;
+  }
+  .mod-reportes .rep-table-wrap table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-shadow: 0 1px 0 var(--bs-border-color);
+    background-color: var(--bs-body-bg) !important;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mod-reportes .rep-table-wrap table tbody td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+  }
+  .mod-reportes .rep-help-toggle {
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+  .mod-reportes .rep-nav-cards .rep-nav-card {
+    border-radius: 1rem;
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    background: var(--bs-body-bg);
+  }
+  .mod-reportes .rep-nav-cards .rep-nav-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--bs-primary-rgb), 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+  .mod-reportes .rep-nav-card-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+  .mod-reportes .rep-nav-cards .btn {
+    border-radius: 0.6rem;
+    font-weight: 600;
+    padding-block: 0.55rem;
+  }
+  .mod-reportes .nav-tabs.rep-inner-tabs {
+    border-bottom-color: var(--bs-border-color-translucent, var(--bs-border-color));
+  }
+  .mod-reportes .nav-tabs.rep-inner-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.6rem 0.95rem;
+  }
+  .mod-reportes .nav-tabs.rep-inner-tabs .nav-link:hover {
+    color: var(--bs-emphasis-color);
+    border-bottom-color: var(--bs-border-color);
+  }
+  .mod-reportes .nav-tabs.rep-inner-tabs .nav-link.active {
+    color: rgb(var(--bs-primary-rgb));
+    border-bottom-color: rgb(var(--bs-primary-rgb));
+    background: transparent;
+    font-weight: 600;
+  }
+  html[data-theme="dark"] .mod-reportes .rep-hero {
+    background: linear-gradient(
+      125deg,
+      rgba(var(--bs-primary-rgb), 0.16) 0%,
+      var(--bs-body-bg) 55%,
+      var(--bs-body-bg) 100%
+    );
+    box-shadow: none;
+  }
+  .mod-reportes .ocupacion-progress {
+    height: 0.5rem;
+    background-color: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    border-radius: 999px;
+  }
+</style>

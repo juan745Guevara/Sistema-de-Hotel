@@ -2,115 +2,124 @@
 
 {% block title %}Reportes - Sistema Hotelero{% endblock %}
 
+{% block extra_css %}
+{% include 'hotel/reportes/_estilos_modulo_reportes.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="h2 mb-1"><i class="bi bi-graph-up"></i> Panel de reportes</h1>
-        <p class="text-muted mb-1"><strong>{{ hotel_nombre }}</strong> · Montos en soles ({{ MONEDA_SIMBOLO }}) · Vista generada <strong>{{ reporte_generado_at }}</strong></p>
-        <p class="small text-muted mb-0">
-            Use <strong>Operación</strong> para rotación, entradas/salidas por día, inventario y noches vendidas; <strong>Ingresos</strong> para caja y turno; <strong>Registro</strong> para libro de huéspedes y PDF.
-        </p>
-    </div>
-</div>
+<div class="mod-reportes container-fluid px-3 px-lg-4 pb-5">
+    <header class="rep-hero mb-4">
+        <div class="d-flex flex-column flex-xl-row align-items-xl-start justify-content-xl-between gap-3">
+            <div>
+                <p class="rep-hero-eyebrow mb-1 text-muted">Centro de inteligencia operativa</p>
+                <h1 class="rep-hero-title h3 mb-2">
+                    <i class="bi bi-graph-up-arrow text-primary"></i> Panel de reportes
+                </h1>
+                <p class="text-muted small mb-0" style="max-width: 42rem;">
+                    <strong>{{ hotel_nombre }}</strong> · montos en soles ({{ MONEDA_SIMBOLO }}) · generado <strong>{{ reporte_generado_at }}</strong>
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="rep-badge-soft"><i class="bi bi-calendar3"></i> Hoy: {{ reporte_index_hoy|date:"d/m/Y" }}</span>
+            </div>
+        </div>
+    </header>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-                <div class="small text-muted text-uppercase">Hoy ({{ reporte_index_hoy|date:"d/m/Y" }})</div>
-                <div class="fs-4 fw-semibold">{{ reporte_index_ocupacion_pct_hoy }}%</div>
-                <div class="small text-muted">Noches vendidas / inventario (calendario)</div>
+    <p class="rep-section-label px-1">Resumen de hoy</p>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon"><i class="bi bi-percent"></i></div>
+                <div class="rep-kpi-title">Ocupación por calendario</div>
+                <div class="rep-kpi-value text-primary">{{ reporte_index_ocupacion_pct_hoy }}%</div>
+                <p class="rep-kpi-hint mb-0">Noches vendidas sobre inventario físico.</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon"><i class="bi bi-door-open"></i></div>
+                <div class="rep-kpi-title">Noches vendidas</div>
+                <div class="rep-kpi-value">{{ reporte_index_noches_vendidas_hab }}<span class="fs-6 fw-normal text-muted"> / {{ reporte_index_total_habitaciones }}</span></div>
+                <p class="rep-kpi-hint mb-0">Habitaciones con noche alquilada hoy.</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon"><i class="bi bi-person-check"></i></div>
+                <div class="rep-kpi-title">Con huésped en casa</div>
+                <div class="rep-kpi-value">{{ reporte_index_en_casa_checkin }}</div>
+                <p class="rep-kpi-hint mb-0">Check-in efectuado y noche vigente.</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon"><i class="bi bi-building"></i></div>
+                <div class="rep-kpi-title">Inventario total</div>
+                <div class="rep-kpi-value">{{ reporte_index_total_habitaciones }}</div>
+                <p class="rep-kpi-hint mb-0">Habitaciones registradas en el sistema.</p>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-                <div class="small text-muted text-uppercase">Habit. con noche alquilada hoy</div>
-                <div class="fs-4 fw-semibold">{{ reporte_index_noches_vendidas_hab }} / {{ reporte_index_total_habitaciones }}</div>
-                <div class="small text-muted">Según reservas (no es “limpieza”)</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-                <div class="small text-muted text-uppercase">Con huésped (check-in hecho)</div>
-                <div class="fs-4 fw-semibold">{{ reporte_index_en_casa_checkin }}</div>
-                <div class="small text-muted">Habitaciones distintas con estadía</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm border-start border-4 border-primary">
-            <div class="card-body">
-                <div class="small text-muted text-uppercase">Inventario</div>
-                <div class="fs-4 fw-semibold">{{ reporte_index_total_habitaciones }}</div>
-                <div class="small text-muted">Habitaciones en el sistema</div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-body-secondary">
-                <h5 class="mb-0">Inventario ahora (estado de cada habitación en el sistema)</h5>
-                <small class="text-muted">Esto es el estado operativo: limpieza, disponible, etc. No es lo mismo que “noche alquilada” (que viene del calendario de reservas).</small>
+    <div class="rep-card-lite card mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h2>Inventario en tiempo real</h2>
+                <p class="small text-muted mb-0">Estado operativo por habitación (limpieza, disponible…). Es distinto del calendario de reservas.</p>
             </div>
-            <div class="card-body py-3">
-                <div class="row g-2 row-cols-2 row-cols-sm-3 row-cols-md-5">
-                    {% for fila in inventario_por_estado %}
-                    <div class="col">
-                        <div class="border rounded-2 px-2 py-2 h-100">
-                            <div class="small text-muted">{{ fila.estado_display }}</div>
-                            <div class="fs-5 fw-semibold">{{ fila.cantidad }}</div>
-                        </div>
+        </div>
+        <div class="card-body pt-3">
+            <div class="row g-2 g-md-3 row-cols-2 row-cols-sm-3 row-cols-md-5">
+                {% for fila in inventario_por_estado %}
+                <div class="col">
+                    <div class="rep-chip h-100">
+                        <span class="small text-muted text-truncate" title="{{ fila.estado_display }}">{{ fila.estado_display }}</span>
+                        <span class="rep-chip-num">{{ fila.cantidad }}</span>
                     </div>
-                    {% empty %}
-                    <p class="text-muted small mb-0">Sin habitaciones.</p>
-                    {% endfor %}
+                </div>
+                {% empty %}
+                <p class="text-muted small mb-0 px-2">Sin habitaciones.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <p class="rep-section-label px-1">Explorar reportes</p>
+    <div class="row g-4 rep-nav-cards mb-2">
+        <div class="col-12 col-lg-4">
+            <div class="rep-nav-card">
+                <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                    <span class="rep-nav-card-icon text-primary mb-3" style="background: rgba(var(--bs-primary-rgb), 0.12);"><i class="bi bi-calendar-range"></i></span>
+                    <h3 class="h5 fw-semibold mb-2">Operación y rotación</h3>
+                    <p class="text-muted small mb-4 flex-grow-1">Por día natural: contratos, check-ins/out, ocupación tipo “noche” y detalle del turno (hora).</p>
+                    <a href="{% url 'reporte_ocupacion' %}" class="btn btn-primary">
+                        Abrir informe operativo <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row justify-content-center g-4">
-    <div class="col-12 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-                <i class="bi bi-calendar-range text-primary" style="font-size: 2.75rem;"></i>
-                <h4 class="mt-3">Operación y rotación</h4>
-                <p class="text-muted small">Reporte alineado al hotel: <strong>entradas y movimientos por día</strong>, inventario (limpieza, etc.), <strong>cupo de noches</strong> y detalle por <strong>turno</strong> (hora).</p>
-                <a href="{% url 'reporte_ocupacion' %}" class="btn btn-primary mt-2">
-                    <i class="bi bi-arrow-right"></i> Ver reporte
-                </a>
+        <div class="col-12 col-lg-4">
+            <div class="rep-nav-card">
+                <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                    <span class="rep-nav-card-icon text-success mb-3" style="background: rgba(25, 135, 84, 0.12);"><i class="bi bi-cash-stack"></i></span>
+                    <h3 class="h5 fw-semibold mb-2">Ingresos</h3>
+                    <p class="text-muted small mb-4 flex-grow-1">Precios por entradas, cobros por hora de registro y resumen por medio de pago.</p>
+                    <a href="{% url 'reporte_ingresos' %}" class="btn btn-success">
+                        Abrir informe económico <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-12 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-                <i class="bi bi-cash-stack text-success" style="font-size: 2.75rem;"></i>
-                <h4 class="mt-3">Ingresos</h4>
-                <p class="text-muted small">Precio por calendario de entrada, cobros y depósitos por <strong>fecha/hora del registro</strong>, resumen de caja por medio y desglose de mixtos.</p>
-                <a href="{% url 'reporte_ingresos' %}" class="btn btn-success mt-2">
-                    <i class="bi bi-arrow-right"></i> Ver reporte
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-                <i class="bi bi-journal-text text-danger" style="font-size: 2.75rem;"></i>
-                <h4 class="mt-3">Registro</h4>
-                <p class="text-muted small">Listado cronológico de ingresos (documento, nombres, habitación, salida si existe). Mismos filtros de fecha/hora que los otros reportes. Exportable en PDF.</p>
-                <a href="{% url 'reporte_registro' %}" class="btn btn-outline-danger mt-2">
-                    <i class="bi bi-arrow-right"></i> Ver reporte
-                </a>
+        <div class="col-12 col-lg-4">
+            <div class="rep-nav-card">
+                <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                    <span class="rep-nav-card-icon text-danger mb-3" style="background: rgba(220, 53, 69, 0.1);"><i class="bi bi-journal-bookmark"></i></span>
+                    <h3 class="h5 fw-semibold mb-2">Libro registro</h3>
+                    <p class="text-muted small mb-4 flex-grow-1">Listado ordenado como libro de huéspedes; mismo filtro de fechas que el resto. Exporte a PDF.</p>
+                    <a href="{% url 'reporte_registro' %}" class="btn btn-outline-danger">
+                        Abrir y exportar <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>

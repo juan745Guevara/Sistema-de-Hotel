@@ -2,355 +2,364 @@
 
 {% block title %}Reporte de Ingresos - Sistema Hotelero{% endblock %}
 
+{% block extra_css %}
+{% include 'hotel/reportes/_estilos_modulo_reportes.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <h1 class="h2 mb-1"><i class="bi bi-cash-stack"></i> Reporte de ingresos</h1>
-        <p class="text-muted mb-1"><strong>{{ hotel_nombre }}</strong> · Período fechas: <strong>{{ fecha_desde_fmt }}</strong> al <strong>{{ fecha_hasta_fmt }}</strong></p>
-        <p class="small text-muted mb-0">Generado <strong>{{ reporte_generado_at }}</strong> · Zona: <strong>{{ time_zone_label }}</strong></p>
-    </div>
-</div>
+<div class="mod-reportes container-fluid px-3 px-lg-4 pb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb rep-breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'reportes' %}">Reportes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Ingresos</li>
+        </ol>
+    </nav>
 
-<div class="alert alert-secondary py-2 small mb-4">
-    <strong>Qué significa cada total:</strong>
-    <em>Ingresos por reservas</em> suma el precio de reservas con <strong>fecha de entrada</strong> en el rango de fechas (no canceladas); <strong>no usa el filtro de hora</strong>.
-    <em>Pagos en check-out</em>, <em>depósitos</em>, <em>resumen de caja</em> y las tablas de movimientos usan la <strong>fecha y hora real</strong> del registro, en la ventana <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (zona <strong>{{ time_zone_label }}</strong>).
-    {% if turno_cruza_medianoche %}
-    <span class="d-block mt-2"><strong>Turno nocturno:</strong> al usar la <strong>misma fecha</strong> con hora hasta menor que la de inicio (ej. 22:00–06:00), el fin se interpreta al <strong>día siguiente</strong> a esa hora.</span>
-    {% endif %}
-</div>
-
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-body-secondary">
-                <h5 class="mb-0">Filtros</h5>
+    <header class="rep-hero mb-3 mb-md-4">
+        <div class="d-flex flex-column flex-xl-row justify-content-xl-between gap-3">
+            <div>
+                <p class="rep-hero-eyebrow mb-1 text-muted">Informe económico</p>
+                <h1 class="rep-hero-title h4 mb-2"><i class="bi bi-cash-stack text-success"></i> Ingresos y caja por turno</h1>
+                <p class="text-muted small mb-0"><strong>{{ hotel_nombre }}</strong> · período fecha <strong>{{ fecha_desde_fmt }}</strong> · <strong>{{ fecha_hasta_fmt }}</strong></p>
             </div>
-            <div class="card-body">
-                <form method="get" class="row g-3 align-items-end">
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label class="form-label">Desde (fecha)</label>
-                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label class="form-label">Hasta (fecha)</label>
-                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-2">
-                        <label class="form-label">Desde (hora)</label>
-                        <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Aplica a check-ins, check-outs y totales por método (no al total por reservas)">
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-2">
-                        <label class="form-label">Hasta (hora)</label>
-                        <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60" title="Incluye el minuto seleccionado completo">
-                    </div>
-                    <div class="col-12 col-lg-2">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-search"></i> Generar
-                        </button>
-                    </div>
-                </form>
-                <p class="small text-muted mb-0 mt-2">
-                    Ventana de turno: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong> (<strong>{{ time_zone_label }}</strong>).
-                    Deja <strong>00:00</strong> a <strong>23:59</strong> en la misma fecha para el día completo.
-                </p>
+            <div class="text-xl-end">
+                <span class="rep-badge-soft d-inline-block"><i class="bi bi-globe-americas"></i> {{ time_zone_label }}</span>
+                <p class="small text-muted mb-0 mt-2">Actualizado {{ reporte_generado_at }}</p>
             </div>
         </div>
-    </div>
-</div>
+    </header>
 
-{% if montos_reservas_vs_checkout_distintos %}
-<div class="alert alert-info py-2 small mb-4">
-    Los montos de <strong>reservas (precio)</strong> y <strong>check-outs (cobrado)</strong> suelen <strong>no coincidir</strong>: el primero suma por <strong>fecha de entrada</strong> en el rango; el segundo por <strong>momento del cobro</strong> en la ventana de hora. Ambos son correctos para sus respectivos fines.
-</div>
-{% endif %}
-
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body py-3">
-                <h6 class="text-muted text-uppercase small mb-1">Check-ins (ventana hora)</h6>
-                <div class="fs-4 fw-semibold">{{ n_checkins_turno }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body py-3">
-                <h6 class="text-muted text-uppercase small mb-1">Check-outs (ventana hora)</h6>
-                <div class="fs-4 fw-semibold">{{ n_checkouts_turno }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body py-3">
-                <h6 class="text-muted text-uppercase small mb-1">Con depósito</h6>
-                <div class="fs-4 fw-semibold">{{ checkins_con_deposito_turno }}</div>
-                <p class="small text-muted mb-0">De los check-ins del turno</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body py-3">
-                <h6 class="text-muted text-uppercase small mb-1">Movimientos totales</h6>
-                <div class="fs-4 fw-semibold">{{ n_checkins_turno|add:n_checkouts_turno }}</div>
-                <p class="small text-muted mb-0">Entradas + salidas registradas</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm border-start border-4 border-success">
-            <div class="card-header bg-body-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <h5 class="mb-0"><i class="bi bi-calculator"></i> Resumen del turno (caja / medios)</h5>
-                <span class="badge text-bg-secondary">Solo movimientos dentro de la ventana de hora</span>
-            </div>
-            <div class="card-body">
-                <p class="small text-muted mb-3">
-                    Suma de <strong>depósitos en check-in</strong> y <strong>cobros en check-out</strong> registrados en el rango, repartida por cómo se pagó (incluye desglose de <strong>mixtos</strong> y cualquier <strong>diferencia</strong> frente al total en efectivo).
-                    <strong>Efectivo</strong> es lo que suele coincidir con lo que va a caja física.
-                </p>
-                {% if turno_medios.sin_metodo %}
-                <div class="alert alert-warning py-2 small mb-3">
-                    Hay <strong>{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</strong> en depósitos/cobros <strong>sin método de pago</strong> registrado (o método desconocido). Revise esos check-ins en el detalle y complete el método para cuadrar caja con precisión.
-                </div>
+    <p class="mb-3">
+        <a class="rep-help-toggle link-secondary text-decoration-none" data-bs-toggle="collapse" href="#repAyudaIngresos" role="button" aria-expanded="false">
+            <i class="bi bi-info-circle"></i> Interpretación de montos y filtros
+        </a>
+    </p>
+    <div class="collapse mb-4" id="repAyudaIngresos">
+        <div class="rep-card-lite card border-0">
+            <div class="card-body small text-muted lh-lg mb-0">
+                <strong>Reservas (precio)</strong> usa la <strong>fecha de entrada</strong> dentro del calendario; <strong>no</strong> aplica el filtro de horas.
+                Cobros check-out, depósitos en check-in y el bloque «Caja por turno» siguen la <strong>fecha y hora real</strong> del registro, entre <strong>{{ filtro_hora_mov_desde }}</strong> y <strong>{{ filtro_hora_mov_hasta }}</strong>.
+                {% if turno_cruza_medianoche %}
+                <span class="d-block mt-2"><strong>Turno nocturno:</strong> misma fecha con hora fin menor que hora inicio lleva el cierre al día siguiente.</span>
                 {% endif %}
-                <div class="row g-3">
-                    <div class="col-6 col-md-3">
-                        <div class="p-3 rounded bg-success bg-opacity-10 h-100">
-                            <div class="small text-muted text-uppercase">Efectivo</div>
-                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.efectivo|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+
+    {% if montos_reservas_vs_checkout_distintos %}
+    <div class="alert alert-info border-0 small mb-4 py-3 shadow-sm rounded-4">
+        <i class="bi bi-lightbulb me-1"></i> Precio por reserva y cobros en checkout suelen diferir porque se agrupan por criterios de fecha distintos; ambos indicadores son válidos en su uso.
+    </div>
+    {% endif %}
+
+    <div class="rep-card-lite card mb-4">
+        <div class="card-header">
+            <h2 class="mb-0">Filtrar</h2>
+            <p class="small text-muted mb-0 mt-1">Fechas anchas siempre aplican al calendario. Horas siguen aplicando sólo donde se indica “turno”.</p>
+        </div>
+        <div class="card-body pb-4">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-lg-10">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold">Desde fecha</label>
+                            <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold">Hasta fecha</label>
+                            <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold">Desde hora</label>
+                            <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Turno para movimientos y caja">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold">Hasta hora</label>
+                            <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60">
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
-                        <div class="p-3 rounded bg-warning bg-opacity-10 h-100">
-                            <div class="small text-muted text-uppercase">Yape</div>
-                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.yape|floatformat:2 }}</div>
-                        </div>
+                </div>
+                <div class="col-12 col-lg-2 d-grid">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Aplicar</button>
+                </div>
+            </form>
+            <p class="small text-muted mt-3 mb-0"><i class="bi bi-clock"></i> Turno cargado actualmente <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>.</p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs rep-inner-tabs mb-3 px-1" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="ing-tab-general" data-bs-toggle="tab" data-bs-target="#ing-general" type="button" role="tab">General y caja</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ing-tab-metodos" data-bs-toggle="tab" data-bs-target="#ing-metodos" type="button" role="tab">Medios de pago</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ing-tab-tipo" data-bs-toggle="tab" data-bs-target="#ing-tipo" type="button" role="tab">Por tipo habitación</button>
+        </li>
+    </ul>
+    <div class="tab-content mb-5" id="ingTabContent">
+        <div class="tab-pane fade show active" id="ing-general" role="tabpanel" aria-labelledby="ing-tab-general" tabindex="0">
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="rep-chip h-100">
+                        <span class="small text-muted">Check-ins · turno</span>
+                        <span class="rep-chip-num">{{ n_checkins_turno }}</span>
                     </div>
-                    <div class="col-6 col-md-3">
-                        <div class="p-3 rounded bg-primary bg-opacity-10 h-100">
-                            <div class="small text-muted text-uppercase">Tarjeta</div>
-                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.tarjeta|floatformat:2 }}</div>
-                        </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="rep-chip h-100">
+                        <span class="small text-muted">Check-outs · turno</span>
+                        <span class="rep-chip-num">{{ n_checkouts_turno }}</span>
                     </div>
-                    <div class="col-6 col-md-3">
-                        <div class="p-3 rounded bg-secondary bg-opacity-10 h-100">
-                            <div class="small text-muted text-uppercase">Transferencia</div>
-                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.transferencia|floatformat:2 }}</div>
-                        </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="rep-chip h-100">
+                        <span class="small text-muted">Depósitos con monto · turno</span>
+                        <span class="rep-chip-num">{{ checkins_con_deposito_turno }}</span>
                     </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="rep-chip h-100">
+                        <span class="small text-muted">Movimiento total CI+CO · turno</span>
+                        <span class="rep-chip-num">{{ n_checkins_turno|add:n_checkouts_turno }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rep-card-lite card mb-4 border-success border-opacity-25">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h2 class="mb-0">Caja proyectada por turno</h2>
+                        <p class="small text-muted mb-0 mt-1">Solo movimientos en la ventana horaria solicitada · incluye desglose de mixtos cuando aplica.</p>
+                    </div>
+                    <span class="badge text-bg-secondary bg-opacity-10 text-dark border fw-normal">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</span>
+                </div>
+                <div class="card-body">
                     {% if turno_medios.sin_metodo %}
-                    <div class="col-6 col-md-3">
-                        <div class="p-3 rounded bg-danger bg-opacity-10 h-100">
-                            <div class="small text-muted text-uppercase">Sin método</div>
-                            <div class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</div>
-                        </div>
+                    <div class="alert alert-warning border-0 small mb-4 rounded-3">
+                        Hay {{ MONEDA_SIMBOLO }}<strong>{{ turno_medios.sin_metodo|floatformat:2 }}</strong> sin medio indicado · revise registros incompletos.
                     </div>
                     {% endif %}
-                </div>
-                <div class="mt-3 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <span class="fw-semibold">Total movimientos del turno</span>
-                    <span class="fs-5">{{ MONEDA_SIMBOLO }}{{ turno_medios.total|floatformat:2 }}</span>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="rep-chip h-100 text-center bg-success-subtle border-0 py-4">
+                                <span class="small text-muted d-block mb-2">Efectivo</span>
+                                <span class="fs-5 fw-bold">{{ MONEDA_SIMBOLO }}{{ turno_medios.efectivo|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="rep-chip h-100 text-center py-4">
+                                <span class="small text-muted d-block mb-2">Yape</span>
+                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.yape|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="rep-chip h-100 text-center py-4">
+                                <span class="small text-muted d-block mb-2">Tarjeta</span>
+                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.tarjeta|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="rep-chip h-100 text-center py-4">
+                                <span class="small text-muted d-block mb-2">Transferencia</span>
+                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.transferencia|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        {% if turno_medios.sin_metodo %}
+                        <div class="col-12 col-md-3">
+                            <div class="rep-chip h-100 text-center py-4 border-danger border-opacity-50">
+                                <span class="small text-muted d-block mb-2">Sin método</span>
+                                <span class="fs-5 fw-semibold text-danger">{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mt-4 pt-3 border-top d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                        <span class="fw-semibold text-muted">Total movimiento turno</span>
+                        <span class="display-6 fs-4 fw-bold text-body">{{ MONEDA_SIMBOLO }}{{ turno_medios.total|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm text-white bg-primary">
-            <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Reservas (precio)</h6>
-                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_reservas|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma del precio de cada reserva según su <strong>fecha de entrada</strong> en el período.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm text-white bg-success">
-            <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Check-outs (cobrado)</h6>
-                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ ingresos_checkouts|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma de lo <strong>cobrado al salir</strong> (check-out) según la <strong>fecha del cobro</strong> en el período.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm text-white bg-dark">
-            <div class="card-body">
-                <h6 class="text-white-50 text-uppercase small">Depósitos check-in</h6>
-                <h3 class="mb-0">{{ MONEDA_SIMBOLO }}{{ depositos_checkin|floatformat:2 }}</h3>
-                <p class="small mb-0 mt-2 opacity-75">Suma de depósitos registrados en el período</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-body-secondary">
-                <h5 class="mb-0">Pagos en check-out por método</h5>
-            </div>
-            <div class="card-body">
-                {% if ingresos_por_metodo %}
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Método</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in ingresos_por_metodo %}
-                            <tr>
-                                <td>{{ item.metodo_display }}</td>
-                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="rep-kpi text-center bg-primary-subtle border-primary border-opacity-10 h-100 py-4">
+                        <span class="rep-kpi-icon mx-auto mb-2"><i class="bi bi-receipt"></i></span>
+                        <div class="rep-kpi-title">Precio ventas registradas</div>
+                        <div class="rep-kpi-value text-primary">{{ MONEDA_SIMBOLO }}{{ ingresos_reservas|floatformat:2 }}</div>
+                        <p class="small text-muted mt-3 mb-0 px-3">Por calendario de entrada en el período.</p>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-muted mb-0">No hay check-outs en este período.</p>
-                {% endif %}
-                {% if ingresos_mixto_tiene_datos %}
-                <hr class="my-3">
-                <h6 class="text-muted small text-uppercase">Desglose de pagos mixtos</h6>
-                <p class="small text-muted mb-2">Suma de cada medio solo en check-outs marcados como <strong>Mixto</strong> (el total por método arriba ya incluye el monto completo de esos cobros).</p>
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Medio</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in ingresos_mixto_desglose %}
-                            {% if item.total %}
-                            <tr>
-                                <td>{{ item.label }}</td>
-                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
-                            </tr>
+                <div class="col-md-4">
+                    <div class="rep-kpi text-center border-success border-opacity-25 h-100 py-4">
+                        <span class="rep-kpi-icon mx-auto mb-2 text-success" style="background: rgba(25,135,84,0.12);"><i class="bi bi-wallet2"></i></span>
+                        <div class="rep-kpi-title">Cobrado · check-out</div>
+                        <div class="rep-kpi-value text-success">{{ MONEDA_SIMBOLO }}{{ ingresos_checkouts|floatformat:2 }}</div>
+                        <p class="small text-muted mt-3 mb-0 px-3">Según marca horaria real del cobro.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="rep-kpi text-center h-100 py-4">
+                        <span class="rep-kpi-icon mx-auto mb-2 bg-secondary bg-opacity-10 text-secondary-emphasis"><i class="bi bi-piggy-bank"></i></span>
+                        <div class="rep-kpi-title">Depósitos en check-in</div>
+                        <div class="rep-kpi-value">{{ MONEDA_SIMBOLO }}{{ depositos_checkin|floatformat:2 }}</div>
+                        <p class="small text-muted mt-3 mb-0 px-3">Ventana fecha/hora del reporte para depósitos.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="ing-metodos" role="tabpanel" tabindex="0">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="rep-card-lite card h-100">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">Check-outs por método declarado</h2>
+                            <span class="small text-muted mt-2 d-block fw-normal">Ventana fecha/hora del reporte aplicada sobre check-outs registrados.</span>
+                        </div>
+                        <div class="card-body">
+                            {% if ingresos_por_metodo %}
+                            <div class="rep-table-wrap border rounded mb-4">
+                                <table class="table table-sm mb-0 align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Método</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in ingresos_por_metodo %}
+                                        <tr>
+                                            <td>{{ item.metodo_display }}</td>
+                                            <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small mb-0">Sin checkout en el período.</p>
                             {% endif %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-body-secondary">
-                <h5 class="mb-0">Depósitos en check-in por método</h5>
-            </div>
-            <div class="card-body">
-                {% if depositos_por_metodo %}
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Método</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in depositos_por_metodo %}
-                            <tr>
-                                <td>{{ item.metodo_display }}</td>
-                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No hay depósitos con método registrado en este período.</p>
-                {% endif %}
-                {% if depositos_mixto_tiene_datos %}
-                <hr class="my-3">
-                <h6 class="text-muted small text-uppercase">Desglose de depósitos mixtos</h6>
-                <p class="small text-muted mb-2">Suma por medio solo en check-ins con depósito <strong>Mixto</strong>.</p>
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Medio</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in depositos_mixto_desglose %}
-                            {% if item.total %}
-                            <tr>
-                                <td>{{ item.label }}</td>
-                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
-                            </tr>
+
+                            {% if ingresos_mixto_tiene_datos %}
+                            <p class="rep-section-label pt-3 border-top px-1">Interior de pagos mixtos</p>
+                            <p class="small text-muted px-1">Las filas muestran el reparto de cobros marcados como <strong>Mixto</strong> (el método mixto aparece antes con el total).</p>
+                            <div class="rep-table-wrap border rounded">
+                                <table class="table table-sm mb-0">
+                                    <thead><tr><th>Medio</th><th class="text-end">Total</th></tr></thead>
+                                    <tbody>
+                                        {% for item in ingresos_mixto_desglose %}
+                                        {% if item.total %}
+                                        <tr>
+                                            <td>{{ item.label }}</td>
+                                            <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                             {% endif %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
+                <div class="col-lg-6">
+                    <div class="rep-card-lite card h-100">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">Depósitos por método</h2>
+                            <span class="small text-muted mt-2 d-block fw-normal">Misma ventana horaria cuando el modelo lo permite.</span>
+                        </div>
+                        <div class="card-body">
+                            {% if depositos_por_metodo %}
+                            <div class="rep-table-wrap border rounded mb-4">
+                                <table class="table table-sm mb-0 align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Método</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in depositos_por_metodo %}
+                                        <tr>
+                                            <td>{{ item.metodo_display }}</td>
+                                            <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small mb-0">Sin depósitos con método cargado para el filtro aplicado.</p>
+                            {% endif %}
+
+                            {% if depositos_mixto_tiene_datos %}
+                            <p class="rep-section-label pt-3 border-top px-1">Desglose depósitos mixtos</p>
+                            <div class="rep-table-wrap border rounded">
+                                <table class="table table-sm mb-0">
+                                    <thead><tr><th>Medio</th><th class="text-end">Total</th></tr></thead>
+                                    <tbody>
+                                        {% for item in depositos_mixto_desglose %}
+                                        {% if item.total %}
+                                        <tr>
+                                            <td>{{ item.label }}</td>
+                                            <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="ing-tipo" role="tabpanel" tabindex="0">
+            <div class="rep-card-lite card">
+                <div class="card-header">
+                    <h2 class="h6 mb-0">Ventas clasificadas por tipo de habitación</h2>
+                    <span class="small text-muted fw-normal">Reservas con entrada efectiva dentro del período y sin cancelaciones.</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if ingresos_por_tipo %}
+                    <div class="rep-table-wrap">
+                        <table class="table mb-0 table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="px-4">Tipo</th>
+                                    <th class="text-end px-3">Contratos</th>
+                                    <th class="text-end px-4">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in ingresos_por_tipo %}
+                                <tr>
+                                    <td class="px-4">{{ item.tipo_display }}</td>
+                                    <td class="text-end px-3">{{ item.cantidad }}</td>
+                                    <td class="text-end fw-semibold px-4">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-4 mb-0 small">Sin datos suficientes con el período elegido.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-body-secondary">
-                <h5 class="mb-0">Ingresos por tipo de habitación</h5>
-                <small class="text-muted">Según reservas con entrada en el período (no canceladas)</small>
-            </div>
-            <div class="card-body">
-                {% if ingresos_por_tipo %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th class="text-end">Cantidad</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in ingresos_por_tipo %}
-                            <tr>
-                                <td>{{ item.tipo_display }}</td>
-                                <td class="text-end">{{ item.cantidad }}</td>
-                                <td class="text-end">{{ MONEDA_SIMBOLO }}{{ item.total|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No hay datos disponibles.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+    <p class="rep-section-label px-1 mb-2">Listado granular del turno</p>
+    <p class="small text-muted mb-3">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</p>
+    {% include 'hotel/reportes/_movimientos_estadia.html' %}
 
-{% include 'hotel/reportes/_movimientos_estadia.html' %}
-
-<div class="row mt-4">
-    <div class="col-12">
-        <a href="{% url 'reportes' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Volver a reportes
-        </a>
-    </div>
+    <a href="{% url 'reportes' %}" class="btn btn-outline-secondary rounded-pill px-4">
+        <i class="bi bi-arrow-left"></i> Volver al panel de reportes
+    </a>
 </div>
 {% endblock %}
