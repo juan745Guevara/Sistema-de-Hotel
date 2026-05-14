@@ -35,8 +35,11 @@
                 </p>
                 <p><strong>Huésped:</strong> {{ reserva.huesped.nombre_completo }}</p>
                 <p><strong>Documento:</strong> {{ reserva.huesped.get_tipo_documento_display }} — {{ reserva.huesped.documento_identidad }}</p>
-                {% if reserva.huesped.lugar_procedencia %}
-                <p><strong>Lugar de procedencia:</strong> {{ reserva.huesped.lugar_procedencia }}</p>
+                {% if reserva.huesped.lugar_residencia %}
+                <p><strong>Lugar de residencia:</strong> {{ reserva.huesped.lugar_residencia }}</p>
+                {% endif %}
+                {% if reserva.huesped.motivo_viaje %}
+                <p><strong>Motivo de viaje:</strong> {{ reserva.huesped.get_motivo_viaje_display }}</p>
                 {% endif %}
                 <p><strong>Habitación:</strong> <a href="{% url 'detalle_habitacion' reserva.habitacion.id %}">{{ reserva.habitacion.numero }} - {{ reserva.habitacion.get_tipo_display }}</a></p>
                 <p><strong>Fecha de Entrada:</strong> {{ reserva.fecha_entrada }}</p>

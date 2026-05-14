@@ -1184,18 +1184,31 @@
             const docSelect = document.getElementById('id_huesped_tipo_documento');
             if (!select) return;
 
+            let prevTipo = docSelect?.value || 'dni';
+
             // Si el doc es DNI: forzar Perú y deshabilitar para evitar inconsistencias.
             function syncNacionalidadPorDoc() {
                 if (!docSelect) return;
-                if (docSelect.value === 'dni') {
+                const v = docSelect.value;
+                if (v === 'dni') {
                     select.value = 'Perú';
                     select.disabled = true;
                 } else {
                     select.disabled = false;
+                    if (prevTipo === 'dni') {
+                        select.value = '';
+                    }
                 }
+                prevTipo = v;
             }
             syncNacionalidadPorDoc();
             docSelect?.addEventListener('change', syncNacionalidadPorDoc);
+
+            docSelect?.closest('form')?.addEventListener('submit', function() {
+                if (select.disabled) {
+                    select.disabled = false;
+                }
+            });
 
             // Type-to-select: al escribir caracteres con el select enfocado, selecciona el primer match.
             let typed = '';

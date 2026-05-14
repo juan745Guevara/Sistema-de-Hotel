@@ -20,17 +20,17 @@
             <div>
                 <p class="rep-hero-eyebrow mb-1 text-muted">Informe económico</p>
                 <h1 class="rep-hero-title h4 mb-2"><i class="bi bi-cash-stack text-success"></i> Ingresos y caja por turno</h1>
-                <p class="text-muted small mb-0"><strong>{{ hotel_nombre }}</strong> · período fecha <strong>{{ fecha_desde_fmt }}</strong> · <strong>{{ fecha_hasta_fmt }}</strong></p>
+                <p class="text-muted small mb-0" style="max-width: 40rem;"><strong>{{ hotel_nombre }}</strong> · calendario local ({{ time_zone_label }}) · generado <strong>{{ reporte_generado_at }}</strong></p>
             </div>
             <div class="text-xl-end">
-                <span class="rep-badge-soft d-inline-block"><i class="bi bi-globe-americas"></i> {{ time_zone_label }}</span>
-                <p class="small text-muted mb-0 mt-2">Actualizado {{ reporte_generado_at }}</p>
+                <span class="rep-badge-soft d-inline-block mb-2"><i class="bi bi-calendar-range"></i> {{ fecha_desde_fmt }} → {{ fecha_hasta_fmt }}</span><br>
+                <span class="small text-muted">{{ n_dias_informe }} día{% if n_dias_informe != 1 %}s{% endif %} en el período</span>
             </div>
         </div>
     </header>
 
     <p class="mb-3">
-        <a class="rep-help-toggle link-secondary text-decoration-none" data-bs-toggle="collapse" href="#repAyudaIngresos" role="button" aria-expanded="false">
+        <a class="rep-help-toggle link-secondary text-decoration-none" data-bs-toggle="collapse" href="#repAyudaIngresos" role="button" aria-expanded="false" aria-controls="repAyudaIngresos">
             <i class="bi bi-info-circle"></i> Interpretación de montos y filtros
         </a>
     </p>
@@ -54,8 +54,8 @@
 
     <div class="rep-card-lite card mb-4">
         <div class="card-header">
-            <h2 class="mb-0">Filtrar</h2>
-            <p class="small text-muted mb-0 mt-1">Fechas anchas siempre aplican al calendario. Horas siguen aplicando sólo donde se indica “turno”.</p>
+            <h2 class="mb-0">Filtrar período</h2>
+            <p class="small text-muted mb-0 mt-1">Las fechas del informe usan día completo (medianoche a medianoche local). Las horas del turno aplican a caja, depósitos, cobros y al listado inferior.</p>
         </div>
         <div class="card-body pb-4">
             <form method="get" class="row g-3 align-items-end">
@@ -70,12 +70,12 @@
                             <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" required>
                         </div>
                         <div class="col-6 col-md-3">
-                            <label class="form-label small fw-semibold">Desde hora</label>
-                            <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Turno para movimientos y caja">
+                            <label class="form-label small fw-semibold">Desde hora <span class="text-muted fw-normal">(turno)</span></label>
+                            <input type="time" name="hora_desde" class="form-control" value="{{ hora_desde }}" step="60" title="Ventana horaria para movimientos y caja">
                         </div>
                         <div class="col-6 col-md-3">
-                            <label class="form-label small fw-semibold">Hasta hora</label>
-                            <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60">
+                            <label class="form-label small fw-semibold">Hasta hora <span class="text-muted fw-normal">(turno)</span></label>
+                            <input type="time" name="hora_hasta" class="form-control" value="{{ hora_hasta }}" step="60" title="Ventana horaria para movimientos y caja">
                         </div>
                     </div>
                 </div>
@@ -83,19 +83,22 @@
                     <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Aplicar</button>
                 </div>
             </form>
-            <p class="small text-muted mt-3 mb-0"><i class="bi bi-clock"></i> Turno cargado actualmente <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>.</p>
+            {% if turno_cruza_medianoche %}
+            <p class="small text-muted mt-3 mb-0"><i class="bi bi-moon-stars"></i> <strong>Turno nocturno:</strong> si la fecha es la misma y la hora «hasta» es menor que «desde» (ej. 22:00–06:00), el sistema interpreta el fin el día siguiente.</p>
+            {% endif %}
+            <p class="small text-muted mt-3 mb-0"><i class="bi bi-clock"></i> Turno aplicado ahora: <strong>{{ filtro_hora_mov_desde }}</strong> → <strong>{{ filtro_hora_mov_hasta }}</strong>.</p>
         </div>
     </div>
 
     <ul class="nav nav-tabs rep-inner-tabs mb-3 px-1" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="ing-tab-general" data-bs-toggle="tab" data-bs-target="#ing-general" type="button" role="tab">General y caja</button>
+            <button class="nav-link active" id="ing-tab-general" data-bs-toggle="tab" data-bs-target="#ing-general" type="button" role="tab" aria-controls="ing-general" aria-selected="true">General y caja</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="ing-tab-metodos" data-bs-toggle="tab" data-bs-target="#ing-metodos" type="button" role="tab">Medios de pago</button>
+            <button class="nav-link" id="ing-tab-metodos" data-bs-toggle="tab" data-bs-target="#ing-metodos" type="button" role="tab" aria-controls="ing-metodos" aria-selected="false">Medios de pago</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="ing-tab-tipo" data-bs-toggle="tab" data-bs-target="#ing-tipo" type="button" role="tab">Por tipo habitación</button>
+            <button class="nav-link" id="ing-tab-tipo" data-bs-toggle="tab" data-bs-target="#ing-tipo" type="button" role="tab" aria-controls="ing-tipo" aria-selected="false">Por tipo habitación</button>
         </li>
     </ul>
     <div class="tab-content mb-5" id="ingTabContent">
@@ -127,57 +130,69 @@
                 </div>
             </div>
 
-            <div class="rep-card-lite card mb-4 border-success border-opacity-25">
-                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <h2 class="mb-0">Caja proyectada por turno</h2>
-                        <p class="small text-muted mb-0 mt-1">Solo movimientos en la ventana horaria solicitada · incluye desglose de mixtos cuando aplica.</p>
+            <div class="rep-card-lite rep-caja-turno card mb-4">
+                <div class="card-header">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                        <div class="d-flex gap-3 align-items-start">
+                            <span class="rep-caja-turno-icon" aria-hidden="true"><i class="bi bi-calculator"></i></span>
+                            <div>
+                                <p class="rep-caja-turno-eyebrow mb-0">Arqueo del turno</p>
+                                <h2 class="rep-caja-turno-title h5 mb-0">Caja proyectada por turno</h2>
+                                <p class="small text-muted mb-0 mt-2" style="max-width: 36rem;">Solo movimientos en la ventana horaria solicitada. Los pagos mixtos se reparten aquí según su desglose.</p>
+                            </div>
+                        </div>
+                        <span class="rep-caja-turno-window"><i class="bi bi-clock-history" aria-hidden="true"></i> {{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</span>
                     </div>
-                    <span class="badge text-bg-secondary bg-opacity-10 text-dark border fw-normal">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</span>
                 </div>
-                <div class="card-body">
-                    {% if turno_medios.sin_metodo %}
-                    <div class="alert alert-warning border-0 small mb-4 rounded-3">
-                        Hay {{ MONEDA_SIMBOLO }}<strong>{{ turno_medios.sin_metodo|floatformat:2 }}</strong> sin medio indicado · revise registros incompletos.
-                    </div>
-                    {% endif %}
+                <div class="card-body pt-3">
                     <div class="row g-3">
-                        <div class="col-6 col-md-3">
-                            <div class="rep-chip h-100 text-center bg-success-subtle border-0 py-4">
-                                <span class="small text-muted d-block mb-2">Efectivo</span>
-                                <span class="fs-5 fw-bold">{{ MONEDA_SIMBOLO }}{{ turno_medios.efectivo|floatformat:2 }}</span>
+                        <div class="col-6 col-lg-3">
+                            <div class="rep-caja-tile rep-caja-tile--efectivo">
+                                <span class="rep-caja-tile-icon"><i class="bi bi-cash-stack" aria-hidden="true"></i></span>
+                                <span class="rep-caja-tile-label">Efectivo</span>
+                                <span class="rep-caja-tile-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.efectivo|floatformat:2 }}</span>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="rep-chip h-100 text-center py-4">
-                                <span class="small text-muted d-block mb-2">Yape</span>
-                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.yape|floatformat:2 }}</span>
+                        <div class="col-6 col-lg-3">
+                            <div class="rep-caja-tile rep-caja-tile--yape">
+                                <span class="rep-caja-tile-icon"><i class="bi bi-phone" aria-hidden="true"></i></span>
+                                <span class="rep-caja-tile-label">Yape</span>
+                                <span class="rep-caja-tile-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.yape|floatformat:2 }}</span>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="rep-chip h-100 text-center py-4">
-                                <span class="small text-muted d-block mb-2">Tarjeta</span>
-                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.tarjeta|floatformat:2 }}</span>
+                        <div class="col-6 col-lg-3">
+                            <div class="rep-caja-tile rep-caja-tile--tarjeta">
+                                <span class="rep-caja-tile-icon"><i class="bi bi-credit-card" aria-hidden="true"></i></span>
+                                <span class="rep-caja-tile-label">Tarjeta</span>
+                                <span class="rep-caja-tile-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.tarjeta|floatformat:2 }}</span>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="rep-chip h-100 text-center py-4">
-                                <span class="small text-muted d-block mb-2">Transferencia</span>
-                                <span class="fs-5 fw-semibold">{{ MONEDA_SIMBOLO }}{{ turno_medios.transferencia|floatformat:2 }}</span>
+                        <div class="col-6 col-lg-3">
+                            <div class="rep-caja-tile rep-caja-tile--transferencia">
+                                <span class="rep-caja-tile-icon"><i class="bi bi-bank" aria-hidden="true"></i></span>
+                                <span class="rep-caja-tile-label">Transferencia</span>
+                                <span class="rep-caja-tile-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.transferencia|floatformat:2 }}</span>
                             </div>
                         </div>
                         {% if turno_medios.sin_metodo %}
-                        <div class="col-12 col-md-3">
-                            <div class="rep-chip h-100 text-center py-4 border-danger border-opacity-50">
-                                <span class="small text-muted d-block mb-2">Sin método</span>
-                                <span class="fs-5 fw-semibold text-danger">{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</span>
+                        <div class="col-12">
+                            <div class="rep-caja-tile rep-caja-tile--alert">
+                                <span class="rep-caja-tile-icon"><i class="bi bi-question-octagon" aria-hidden="true"></i></span>
+                                <div class="rep-caja-tile-body">
+                                    <span class="rep-caja-tile-label">Sin método</span>
+                                    <span class="rep-caja-tile-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.sin_metodo|floatformat:2 }}</span>
+                                    <span class="small text-muted mt-1">Revise cobros o depósitos sin medio asignado.</span>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
                     </div>
-                    <div class="mt-4 pt-3 border-top d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                        <span class="fw-semibold text-muted">Total movimiento turno</span>
-                        <span class="display-6 fs-4 fw-bold text-body">{{ MONEDA_SIMBOLO }}{{ turno_medios.total|floatformat:2 }}</span>
+                    <div class="rep-caja-turno-total">
+                        <div>
+                            <div class="rep-caja-turno-total-label">Total movimiento del turno</div>
+                            <p class="rep-caja-turno-total-hint mb-0">Suma de efectivo, Yape, tarjeta, transferencia y montos sin método.</p>
+                        </div>
+                        <span class="rep-caja-turno-total-value">{{ MONEDA_SIMBOLO }}{{ turno_medios.total|floatformat:2 }}</span>
                     </div>
                 </div>
             </div>
@@ -210,7 +225,7 @@
             </div>
         </div>
 
-        <div class="tab-pane fade" id="ing-metodos" role="tabpanel" tabindex="0">
+        <div class="tab-pane fade" id="ing-metodos" role="tabpanel" aria-labelledby="ing-tab-metodos" tabindex="0">
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="rep-card-lite card h-100">
@@ -318,7 +333,7 @@
             </div>
         </div>
 
-        <div class="tab-pane fade" id="ing-tipo" role="tabpanel" tabindex="0">
+        <div class="tab-pane fade" id="ing-tipo" role="tabpanel" aria-labelledby="ing-tab-tipo" tabindex="0">
             <div class="rep-card-lite card">
                 <div class="card-header">
                     <h2 class="h6 mb-0">Ventas clasificadas por tipo de habitación</h2>
@@ -354,9 +369,15 @@
         </div>
     </div>
 
-    <p class="rep-section-label px-1 mb-2">Listado granular del turno</p>
-    <p class="small text-muted mb-3">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</p>
-    {% include 'hotel/reportes/_movimientos_estadia.html' %}
+    <div class="rep-card-lite card mb-4">
+        <div class="card-header pb-2">
+            <h2 class="mb-0">Detalle por turno (hora)</h2>
+            <p class="small text-muted mb-0 mt-1">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</p>
+        </div>
+        <div class="card-body pt-2">
+            {% include 'hotel/reportes/_movimientos_estadia.html' %}
+        </div>
+    </div>
 
     <a href="{% url 'reportes' %}" class="btn btn-outline-secondary rounded-pill px-4">
         <i class="bi bi-arrow-left"></i> Volver al panel de reportes

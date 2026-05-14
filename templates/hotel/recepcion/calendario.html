@@ -1,46 +1,119 @@
 {% extends 'base.html' %}
 
-{% block title %}Calendario de Ocupación - Sistema Hotelero{% endblock %}
+{% block title %}Calendario de ocupación - Sistema Hotelero{% endblock %}
+
+{% block extra_css %}
+<style>
+  .cal-ocupacion-wrap { overflow-x: auto; }
+  .cal-ocupacion-table { table-layout: fixed; min-width: 720px; }
+  .cal-ocupacion-table th { width: 14.28%; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .cal-ocupacion-dia { min-height: 7.5rem; vertical-align: top !important; padding: 0.35rem !important; }
+  .cal-ocupacion-dia-vacio { background: var(--bs-secondary-bg, #f8f9fa); }
+  .cal-ocupacion-dia-hoy { box-shadow: inset 0 0 0 2px rgba(var(--bs-primary-rgb), 0.55); background: rgba(var(--bs-primary-rgb), 0.06); }
+  .cal-ocupacion-num { font-size: 0.95rem; font-weight: 600; line-height: 1.2; margin-bottom: 0.25rem; }
+  .cal-ocupacion-lista { max-height: 9.5rem; overflow-y: auto; font-size: 0.72rem; }
+  .cal-ocupacion-chip { display: block; padding: 0.2rem 0.35rem; margin-bottom: 0.2rem; border-radius: 0.25rem; text-decoration: none; color: inherit; border: 1px solid var(--bs-border-color); background: var(--bs-body-bg); }
+  .cal-ocupacion-chip:hover { background: var(--bs-secondary-bg); color: inherit; }
+  .cal-ocupacion-chip .hab { font-weight: 600; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 stack-sm">
-            <h1 class="h2 mb-0"><i class="bi bi-calendar3"></i> Calendario de Ocupación</h1>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
+                <h1 class="h2 mb-1"><i class="bi bi-calendar3"></i> Calendario de ocupación</h1>
+                <p class="text-muted small mb-0">Reservas por día (incluye check-out ya realizado en el mes). Canceladas no se muestran.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                {% if mes != hoy.month or año != hoy.year %}
+                <a href="?mes={{ hoy.month }}&ano={{ hoy.year }}" class="btn btn-outline-secondary btn-sm">Hoy</a>
+                {% endif %}
                 {% if mes > 1 %}
-                <a href="?mes={{ mes|add:'-1' }}&año={{ año }}" class="btn btn-outline-primary">
-                    <i class="bi bi-chevron-left"></i> Mes Anterior
+                <a href="?mes={{ mes|add:'-1' }}&ano={{ año }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-chevron-left"></i> Anterior
                 </a>
                 {% else %}
-                <a href="?mes=12&año={{ año|add:'-1' }}" class="btn btn-outline-primary">
-                    <i class="bi bi-chevron-left"></i> Mes Anterior
+                <a href="?mes=12&ano={{ año|add:'-1' }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-chevron-left"></i> Anterior
                 </a>
                 {% endif %}
                 {% if mes < 12 %}
-                <a href="?mes={{ mes|add:'1' }}&año={{ año }}" class="btn btn-outline-primary">
-                    Mes Siguiente <i class="bi bi-chevron-right"></i>
+                <a href="?mes={{ mes|add:'1' }}&ano={{ año }}" class="btn btn-outline-primary btn-sm">
+                    Siguiente <i class="bi bi-chevron-right"></i>
                 </a>
                 {% else %}
-                <a href="?mes=1&año={{ año|add:'1' }}" class="btn btn-outline-primary">
-                    Mes Siguiente <i class="bi bi-chevron-right"></i>
+                <a href="?mes=1&ano={{ año|add:'1' }}" class="btn btn-outline-primary btn-sm">
+                    Siguiente <i class="bi bi-chevron-right"></i>
                 </a>
                 {% endif %}
             </div>
         </div>
-        <h3 class="text-muted">{{ fecha_inicio|date:"F Y" }}</h3>
+        <h2 class="h4 text-primary mb-0">{{ titulo_mes }}</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header py-2 d-flex justify-content-end align-items-center flex-wrap gap-2">
+                <span class="small text-muted mb-0">{{ reservas|length }} reserva{% if reservas|length != 1 %}s{% endif %} con noches en este mes</span>
+            </div>
+            <div class="card-body p-2 p-md-3">
+                <div class="cal-ocupacion-wrap">
+                    <table class="table table-bordered mb-0 cal-ocupacion-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lun</th>
+                                <th>Mar</th>
+                                <th>Mié</th>
+                                <th>Jue</th>
+                                <th>Vie</th>
+                                <th>Sáb</th>
+                                <th>Dom</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for semana in semanas_calendario %}
+                            <tr>
+                                {% for celda in semana %}
+                                    {% if celda %}
+                                    <td class="cal-ocupacion-dia {% if celda.es_hoy %}cal-ocupacion-dia-hoy{% endif %}">
+                                        <div class="cal-ocupacion-num text-body">{{ celda.dia }}</div>
+                                        <div class="cal-ocupacion-lista">
+                                            {% for reserva in celda.reservas %}
+                                            <a href="{% url 'detalle_reserva' reserva.id %}" class="cal-ocupacion-chip text-start" title="{{ reserva.huesped.nombre_completo }} · Hab. {{ reserva.habitacion.numero }}">
+                                                <span class="hab">Hab. {{ reserva.habitacion.numero }}</span>
+                                                <span class="text-muted d-block text-truncate">{{ reserva.huesped.nombre_completo }}</span>
+                                                <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'checkout' %}secondary{% else %}warning{% endif %} bg-opacity-75 mt-1">{{ reserva.get_estado_display }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    {% else %}
+                                    <td class="cal-ocupacion-dia cal-ocupacion-dia-vacio"></td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="row">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Reservas del Mes</h5>
+        <div class="card shadow-sm">
+            <div class="card-header py-2">
+                <h5 class="mb-0">Listado del mes</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover table-sm align-middle">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -50,7 +123,7 @@
                                 <th>Salida</th>
                                 <th>Noches</th>
                                 <th>Estado</th>
-                                <th>Acciones</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -59,23 +132,23 @@
                                 <td>#{{ reserva.id }}</td>
                                 <td>{{ reserva.huesped.nombre_completo }}</td>
                                 <td>{{ reserva.habitacion.numero }}</td>
-                                <td>{{ reserva.fecha_entrada }}</td>
-                                <td>{{ reserva.fecha_salida }}</td>
+                                <td>{{ reserva.fecha_entrada|date:"d/m/Y" }}</td>
+                                <td>{{ reserva.fecha_salida|date:"d/m/Y" }}</td>
                                 <td>{{ reserva.numero_noches }}</td>
                                 <td>
-                                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
+                                    <span class="badge bg-{% if reserva.estado == 'confirmada' %}success{% elif reserva.estado == 'checkin' %}info{% elif reserva.estado == 'checkout' %}secondary{% elif reserva.estado == 'cancelada' %}danger{% else %}warning{% endif %}">
                                         {{ reserva.get_estado_display }}
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-primary">
+                                    <a href="{% url 'detalle_reserva' reserva.id %}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center text-muted">No hay reservas en este mes</td>
+                                <td colspan="8" class="text-center text-muted py-4">No hay reservas en este mes</td>
                             </tr>
                             {% endfor %}
                         </tbody>

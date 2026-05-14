@@ -4,6 +4,18 @@
 
 {% block extra_css %}
 {% include 'hotel/reportes/_estilos_modulo_reportes.html' %}
+<style>
+  .mod-reportes .rep-libro-registro-table {
+    min-width: 1800px;
+  }
+  .mod-reportes .rep-libro-registro-table thead th {
+    font-size: 0.65rem;
+  }
+  .mod-reportes .rep-libro-registro-table tbody td {
+    font-size: 0.72rem;
+    vertical-align: top;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -20,8 +32,8 @@
             <div>
                 <p class="rep-hero-eyebrow mb-1 text-muted">Documentación legal / recepción</p>
                 <h1 class="rep-hero-title h4 mb-2"><i class="bi bi-journal-text text-danger"></i> Libro registro huéspedes</h1>
-                <p class="text-muted small mb-0" style="max-width:36rem;">
-                    Orden cronológico por <strong>fecha/hora real de check-in</strong>; incluye nacionalidad y salida sólo cuando exista checkout en el sistema.
+                <p class="text-muted small mb-0" style="max-width:40rem;">
+                    Orden por <strong>fecha/hora de check-in</strong>. Incluye los <strong>datos del huésped</strong> (documento, nombres, nacionalidad, residencia, motivo de viaje, etc.) y la salida cuando exista check-out.
                 </p>
             </div>
             <div class="text-xl-end">
@@ -83,24 +95,28 @@
         <div>
             <p class="small text-muted mb-1">{{ filtro_hora_mov_desde }} → {{ filtro_hora_mov_hasta }}</p>
             <p class="h5 mb-0"><span class="text-primary">{{ total_registros }}</span> entrada{% if total_registros != 1 %}s{% endif %} encontrada{% if total_registros != 1 %}s{% endif %} con el intervalo aplicado.</p>
+            <p class="small text-muted mb-0 mt-1">Desplace la tabla horizontalmente para ver todas las columnas.</p>
         </div>
     </div>
 
     <div class="rep-card-lite card border-0">
         <div class="rep-table-wrap border rounded rounded-3">
-            <table class="table table-sm table-hover mb-0 align-middle">
+            <table class="table table-sm table-hover mb-0 align-middle rep-libro-registro-table">
                 <thead>
-                    <tr class="small text-muted text-uppercase" style="font-size:.68rem;">
-                        <th class="text-center px-2" scope="col" style="width:3rem">#</th>
+                    <tr class="small text-muted text-uppercase">
+                        <th class="text-center px-2" scope="col" style="width:2.5rem">#</th>
                         <th class="text-nowrap" scope="col">Ingreso</th>
                         <th class="text-nowrap" scope="col">Salida</th>
-                        <th scope="col">Documento</th>
-                        <th scope="col">Apellidos y nombres</th>
+                        <th scope="col">Tipo doc.</th>
+                        <th scope="col">N° documento</th>
+                        <th scope="col">Nombres</th>
+                        <th scope="col">Apellidos</th>
+                        <th class="text-nowrap" scope="col">F. nac.</th>
                         <th scope="col">Nacionalidad</th>
-                        <th scope="col">Origen</th>
+                        <th scope="col">Sexo</th>
+                        <th scope="col">Residencia</th>
+                        <th scope="col">Motivo viaje</th>
                         <th class="text-center" scope="col">Hab.</th>
-                        <th class="text-center" scope="col">Pax.</th>
-                        <th class="text-center" scope="col">Rv.</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -109,17 +125,20 @@
                         <td class="text-center text-muted">{{ f.orden }}</td>
                         <td class="text-nowrap small">{{ f.entrada }}</td>
                         <td class="text-nowrap small">{{ f.salida }}</td>
-                        <td class="small">{{ f.documento }}</td>
-                        <td>{{ f.nombre_completo }}</td>
+                        <td class="small">{{ f.tipo_documento }}</td>
+                        <td class="small">{{ f.documento_identidad }}</td>
+                        <td class="small text-break">{{ f.nombre }}</td>
+                        <td class="small text-break">{{ f.apellidos }}</td>
+                        <td class="text-nowrap small">{{ f.fecha_nacimiento }}</td>
                         <td class="small text-muted">{{ f.nacionalidad }}</td>
-                        <td class="small">{{ f.procedencia }}</td>
+                        <td class="small">{{ f.sexo }}</td>
+                        <td class="small text-break">{{ f.lugar_residencia }}</td>
+                        <td class="small">{{ f.motivo_viaje }}</td>
                         <td class="text-center"><span class="badge rounded-pill text-bg-light border text-dark">{{ f.habitacion }}</span></td>
-                        <td class="text-center small">{{ f.num_huespedes }}</td>
-                        <td class="text-center small"><a href="{% url 'detalle_reserva' f.reserva_id %}">#{{ f.reserva_id }}</a></td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-5 px-3">Sin check-ins dentro del período elegido · intente expandir ventana de fecha.</td>
+                        <td colspan="13" class="text-center text-muted py-5 px-3">Sin check-ins dentro del período elegido · intente expandir ventana de fecha.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

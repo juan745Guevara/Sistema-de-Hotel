@@ -55,7 +55,7 @@
                             <label class="form-label" id="walkin_doc_label">Número de DNI <span class="text-danger">*</span></label>
                             <input type="text" name="documento_identidad" id="documento_identidad" class="form-control"
                                    maxlength="50" required autofocus placeholder="Ej. 40123456" autocomplete="off" inputmode="numeric">
-                            <small class="text-muted d-block mt-1" id="walkin_doc_help">DNI: 8 dígitos. Si el documento ya existía con el mismo tipo, se actualizan nombre y procedencia.</small>
+                            <small class="text-muted d-block mt-1" id="walkin_doc_help">DNI: 8 dígitos. Si el documento ya existía con el mismo tipo, se actualizan nombre, residencia y motivo de viaje.</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nombres <span class="text-danger">*</span></label>
@@ -69,23 +69,36 @@
                             <input type="text" name="apellidos" id="apellidos" class="form-control" required placeholder="Apellidos" autocomplete="family-name">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Lugar de procedencia <span class="text-danger">*</span></label>
-                            <input type="text" name="lugar_procedencia" id="lugar_procedencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de origen" autocomplete="address-level2">
+                            <label class="form-label">Lugar de residencia <span class="text-danger">*</span></label>
+                            <input type="text" name="lugar_residencia" id="lugar_residencia" class="form-control" required maxlength="200" placeholder="Ciudad o lugar de residencia" autocomplete="address-level2">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Motivo de viaje <span class="text-danger">*</span></label>
+                            <select name="motivo_viaje" id="motivo_viaje" class="form-select" required>
+                                {% for value,label in motivos_viaje %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label class="form-label">Nacionalidad</label>
+                            <label class="form-label">Nacionalidad <span class="text-danger">*</span></label>
                             <select
                                 name="nacionalidad"
                                 id="walkin_nacionalidad"
                                 class="form-select"
                             >
+                                <option value="">Seleccione nacionalidad</option>
                                 {% for value,label in nacionalidades %}
-                                    <option value="{{ value }}" {% if value == 'Perú' %}selected{% endif %}>{{ label }}</option>
+                                    <option value="{{ value }}">{{ label }}</option>
                                 {% endfor %}
                             </select>
+                            <small class="text-muted d-block mt-1" id="walkin_nac_help">Con DNI peruano se registra como <strong>Perú</strong>. Con CE, pasaporte u otro documento elija la nacionalidad.</small>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Fecha de nacimiento</label>
@@ -223,6 +236,8 @@
     const lbl = document.getElementById('walkin_doc_label');
     const help = document.getElementById('walkin_doc_help');
     const nac = document.getElementById('walkin_nacionalidad');
+    const nacHelp = document.getElementById('walkin_nac_help');
+    let prevTipo = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
     if (radios.length && inp && lbl) {
         function syncDocTipo() {
             const v = document.querySelector('input[name="tipo_documento"]:checked')?.value || 'dni';
@@ -230,40 +245,68 @@
                 lbl.innerHTML = 'Número de DNI <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. 40123456';
                 inp.setAttribute('inputmode', 'numeric');
+                inp.setAttribute('required', 'required');
                 if (help) help.textContent = 'DNI peruano: exactamente 8 dígitos.';
                 if (nac) {
                     nac.value = 'Perú';
                     nac.disabled = true;
+                    nac.removeAttribute('required');
                 }
+                if (nacHelp) nacHelp.classList.remove('d-none');
             } else if (v === 'carnet_extranjeria') {
                 lbl.innerHTML = 'Número de carné de extranjería (CE) <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. 001-123456';
                 inp.removeAttribute('inputmode');
+                inp.setAttribute('required', 'required');
                 if (help) help.textContent = 'CE u otro formato según Migraciones; letras, números, guiones o puntos (4–50 caracteres).';
                 if (nac) {
                     nac.disabled = false;
+                    nac.setAttribute('required', 'required');
+                    if (prevTipo === 'dni') {
+                        nac.value = '';
+                    }
                 }
+                if (nacHelp) nacHelp.classList.add('d-none');
             } else if (v === 'pasaporte') {
                 lbl.innerHTML = 'Número de pasaporte <span class="text-danger">*</span>';
                 inp.placeholder = 'Ej. AB1234567';
                 inp.removeAttribute('inputmode');
+                inp.setAttribute('required', 'required');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
                 if (nac) {
                     nac.disabled = false;
+                    nac.setAttribute('required', 'required');
+                    if (prevTipo === 'dni') {
+                        nac.value = '';
+                    }
                 }
+                if (nacHelp) nacHelp.classList.add('d-none');
             } else {
                 lbl.innerHTML = 'Número de documento <span class="text-danger">*</span>';
                 inp.placeholder = 'Documento oficial';
                 inp.removeAttribute('inputmode');
+                inp.setAttribute('required', 'required');
                 if (help) help.textContent = '4 a 50 caracteres (letras, números, guiones o puntos).';
                 if (nac) {
                     nac.disabled = false;
+                    nac.setAttribute('required', 'required');
+                    if (prevTipo === 'dni') {
+                        nac.value = '';
+                    }
                 }
+                if (nacHelp) nacHelp.classList.add('d-none');
             }
+            prevTipo = v;
         }
         radios.forEach(function (r) { r.addEventListener('change', syncDocTipo); });
         syncDocTipo();
     }
+    const walkinForm = document.getElementById('walkin-form');
+    walkinForm?.addEventListener('submit', function () {
+        if (nac && nac.disabled) {
+            nac.disabled = false;
+        }
+    });
 })();
 
 // Type-to-search dentro del mismo <select> (busca con el teclado).

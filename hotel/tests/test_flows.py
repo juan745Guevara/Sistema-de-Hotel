@@ -66,7 +66,8 @@ class ReservaCheckinCheckoutFlowTests(TenantFlowTestCase):
             'huesped_documento': '99988877',
             'huesped_nombre': 'Ana',
             'huesped_apellidos': 'Prueba',
-            'huesped_lugar_procedencia': 'Lima',
+            'huesped_lugar_residencia': 'Lima',
+            'huesped_motivo_viaje': 'turismo',
             'habitacion': str(self.hab.pk),
             'fecha_entrada': hoy.isoformat(),
             'fecha_salida': manana.isoformat(),
@@ -138,7 +139,8 @@ class WalkinFlowTests(TenantFlowTestCase):
             'documento_identidad': '11223344',
             'nombre': 'Luis',
             'apellidos': 'Walkin',
-            'lugar_procedencia': 'Cusco',
+            'lugar_residencia': 'Cusco',
+            'motivo_viaje': 'negocios',
             'habitacion': str(self.hab2.pk),
             'numero_huespedes': '1',
             'tipo_estadia': 'noches',
@@ -170,9 +172,7 @@ class ReporteRegistroTests(TenantFlowTestCase):
             nombre='X',
             apellidos='Y',
             documento_identidad='55667788',
-            lugar_procedencia='Lima',
-            email='',
-            telefono='',
+            lugar_residencia='Lima',
         )
         hoy = timezone.localdate()
         manana = hoy + timedelta(days=1)

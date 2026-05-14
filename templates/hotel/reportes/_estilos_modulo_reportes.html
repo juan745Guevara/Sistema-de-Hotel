@@ -204,10 +204,271 @@
     );
     box-shadow: none;
   }
-  .mod-reportes .ocupacion-progress {
-    height: 0.5rem;
-    background-color: var(--bs-secondary-bg);
+  .mod-reportes .rep-ventas-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mod-reportes .rep-ventas-chart {
+    min-height: 11rem;
+    padding: 0.25rem 0;
+  }
+  .mod-reportes .rep-ventas-col {
+    width: 2.35rem;
+    padding: 0.15rem 0.1rem 0;
+  }
+  .mod-reportes .rep-ventas-col--hoy {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    border-radius: 0.35rem;
+  }
+  .mod-reportes .rep-ventas-track {
+    position: relative;
+    width: 1.65rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border-radius: 0.3rem 0.3rem 0 0;
+    background: var(--bs-secondary-bg);
     border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
-    border-radius: 999px;
+    border-bottom: none;
+  }
+  .mod-reportes .rep-ventas-inv-marker {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    height: 0;
+    border-top: 2px dashed rgba(var(--bs-secondary-rgb), 0.75);
+    z-index: 1;
+    pointer-events: none;
+  }
+  .mod-reportes .rep-ventas-bar {
+    position: relative;
+    z-index: 2;
+    width: 1.1rem;
+    min-height: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(var(--bs-primary-rgb), 0.95) 0%,
+      rgba(var(--bs-primary-rgb), 0.55) 100%
+    );
+    transition: height 0.2s ease;
+  }
+  .mod-reportes .rep-ventas-legend-swatch {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    vertical-align: -0.1em;
+    margin-right: 0.25rem;
+    background: linear-gradient(
+      180deg,
+      rgba(var(--bs-primary-rgb), 0.9) 0%,
+      rgba(var(--bs-primary-rgb), 0.5) 100%
+    );
+  }
+  .mod-reportes .rep-ventas-legend-line {
+    display: inline-block;
+    width: 1.25rem;
+    vertical-align: middle;
+    margin-right: 0.25rem;
+    border-top: 2px dashed rgba(var(--bs-secondary-rgb), 0.75);
+  }
+
+  /* Caja proyectada por turno (informe ingresos) */
+  .mod-reportes .rep-caja-turno {
+    border: 1px solid rgba(25, 135, 84, 0.22);
+    box-shadow: 0 4px 22px rgba(25, 135, 84, 0.07);
+  }
+  .mod-reportes .rep-caja-turno .card-header {
+    background: linear-gradient(
+      125deg,
+      rgba(25, 135, 84, 0.14) 0%,
+      var(--bs-body-bg) 52%,
+      var(--bs-body-bg) 100%
+    );
+    border-bottom: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    padding: 1.1rem 1.2rem 0.85rem;
+  }
+  .mod-reportes .rep-caja-turno-eyebrow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.2rem;
+  }
+  .mod-reportes .rep-caja-turno-title {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--bs-emphasis-color);
+  }
+  .mod-reportes .rep-caja-turno-icon {
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    background: linear-gradient(145deg, rgba(25, 135, 84, 0.22), rgba(25, 135, 84, 0.06));
+    color: rgb(18, 120, 72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .mod-reportes .rep-caja-turno-window {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 2rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    white-space: nowrap;
+  }
+  .mod-reportes .rep-caja-turno-window i {
+    font-size: 1rem;
+    opacity: 0.75;
+  }
+  .mod-reportes .rep-caja-tile {
+    height: 100%;
+    min-height: 7.75rem;
+    padding: 1rem 0.85rem 0.95rem;
+    border-radius: 1rem;
+    border: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
+    background: var(--bs-body-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .mod-reportes .rep-caja-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.07);
+    border-color: rgba(var(--bs-success-rgb), 0.35);
+  }
+  .mod-reportes .rep-caja-tile-icon {
+    width: 2.55rem;
+    height: 2.55rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 0.55rem;
+  }
+  .mod-reportes .rep-caja-tile-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.3rem;
+  }
+  .mod-reportes .rep-caja-tile-value {
+    font-size: 1.18rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-emphasis-color);
+  }
+  .mod-reportes .rep-caja-tile--efectivo .rep-caja-tile-icon {
+    background: rgba(25, 135, 84, 0.16);
+    color: var(--bs-success);
+  }
+  .mod-reportes .rep-caja-tile--efectivo {
+    background: linear-gradient(180deg, rgba(25, 135, 84, 0.06) 0%, var(--bs-body-bg) 42%);
+  }
+  .mod-reportes .rep-caja-tile--yape .rep-caja-tile-icon {
+    background: rgba(111, 66, 193, 0.16);
+    color: #6f42c1;
+  }
+  .mod-reportes .rep-caja-tile--yape {
+    background: linear-gradient(180deg, rgba(111, 66, 193, 0.06) 0%, var(--bs-body-bg) 42%);
+  }
+  .mod-reportes .rep-caja-tile--tarjeta .rep-caja-tile-icon {
+    background: rgba(var(--bs-primary-rgb), 0.14);
+    color: rgb(var(--bs-primary-rgb));
+  }
+  .mod-reportes .rep-caja-tile--tarjeta {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.07) 0%, var(--bs-body-bg) 42%);
+  }
+  .mod-reportes .rep-caja-tile--transferencia .rep-caja-tile-icon {
+    background: rgba(13, 202, 240, 0.16);
+    color: #0aa2c0;
+  }
+  .mod-reportes .rep-caja-tile--transferencia {
+    background: linear-gradient(180deg, rgba(13, 202, 240, 0.07) 0%, var(--bs-body-bg) 42%);
+  }
+  .mod-reportes .rep-caja-tile--alert {
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.85rem;
+    min-height: 0;
+    padding: 0.95rem 1rem;
+    border-color: rgba(var(--bs-danger-rgb), 0.35);
+    background: linear-gradient(90deg, rgba(var(--bs-danger-rgb), 0.08) 0%, var(--bs-body-bg) 55%);
+  }
+  .mod-reportes .rep-caja-tile--alert .rep-caja-tile-icon {
+    margin-bottom: 0;
+    background: rgba(var(--bs-danger-rgb), 0.14);
+    color: var(--bs-danger);
+  }
+  .mod-reportes .rep-caja-tile--alert .rep-caja-tile-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mod-reportes .rep-caja-tile--alert .rep-caja-tile-value {
+    color: var(--bs-danger);
+  }
+  .mod-reportes .rep-caja-turno-total {
+    margin-top: 1.15rem;
+    padding: 1rem 1.2rem;
+    border-radius: 0.95rem;
+    background: linear-gradient(
+      125deg,
+      rgba(25, 135, 84, 0.12) 0%,
+      rgba(var(--bs-primary-rgb), 0.06) 100%
+    );
+    border: 1px solid rgba(25, 135, 84, 0.22);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem;
+  }
+  .mod-reportes .rep-caja-turno-total-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.15rem;
+  }
+  .mod-reportes .rep-caja-turno-total-hint {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    margin: 0;
+    max-width: 22rem;
+  }
+  .mod-reportes .rep-caja-turno-total-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-emphasis-color);
+  }
+  html[data-theme="dark"] .mod-reportes .rep-caja-turno {
+    box-shadow: 0 4px 28px rgba(0, 0, 0, 0.25);
+  }
+  html[data-theme="dark"] .mod-reportes .rep-caja-turno-icon {
+    color: var(--bs-success);
+    box-shadow: none;
   }
 </style>

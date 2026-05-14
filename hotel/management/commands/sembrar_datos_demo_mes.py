@@ -230,7 +230,8 @@ class Command(BaseCommand):
                     documento_identidad=doc,
                     nombre=nombre,
                     apellidos=apellido,
-                    lugar_procedencia=ciudad,
+                    lugar_residencia=ciudad,
+                    motivo_viaje=random.choice([c[0] for c in Huesped.MOTIVO_VIAJE_CHOICES]),
                 )
 
                 res = Reserva.all_objects.create(

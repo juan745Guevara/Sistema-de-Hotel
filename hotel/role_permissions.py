@@ -37,7 +37,7 @@ URL_ROLE_ACCESS = {
     'lista_checkouts': {ADMIN, REC},
     'realizar_checkout': {ADMIN, REC},
     'reportes': {ADMIN},
-    'reporte_ocupacion': {ADMIN},
+    'reporte_estadisticas_ocupacion': {ADMIN},
     'reporte_ingresos': {ADMIN},
     'reporte_registro': {ADMIN},
     'reporte_registro_pdf': {ADMIN},

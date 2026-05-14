@@ -43,12 +43,11 @@ class HuespedAdmin(admin.ModelAdmin):
         'documento_identidad',
         'nombre',
         'apellidos',
-        'lugar_procedencia',
+        'lugar_residencia',
+        'motivo_viaje',
         'tenant',
-        'email',
-        'telefono',
     ]
-    search_fields = ['nombre', 'apellidos', 'email', 'documento_identidad', 'lugar_procedencia']
+    search_fields = ['nombre', 'apellidos', 'documento_identidad', 'lugar_residencia']
 
     def get_queryset(self, request):
         return Huesped.all_objects.all()

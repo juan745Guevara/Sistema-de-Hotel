@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Estadísticas de ocupación - Reportes{% endblock %}
+
+{% block extra_css %}
+{% include 'hotel/reportes/_estilos_modulo_reportes.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="mod-reportes container-fluid px-3 px-lg-4 pb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb rep-breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'reportes' %}">Reportes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Estadísticas de ocupación</li>
+        </ol>
+    </nav>
+
+    <header class="rep-hero mb-3 mb-md-4">
+        <div class="d-flex flex-column flex-xl-row justify-content-xl-between gap-3">
+            <div>
+                <p class="rep-hero-eyebrow mb-1 text-muted">Informe de ocupación</p>
+                <h1 class="rep-hero-title h4 mb-2"><i class="bi bi-bar-chart-line text-primary"></i> Estadísticas de ocupación</h1>
+                <p class="text-muted small mb-0" style="max-width: 42rem;">
+                    <strong>{{ hotel_nombre }}</strong> · calendario local ({{ time_zone_label }}) · generado <strong>{{ reporte_generado_at }}</strong>
+                </p>
+            </div>
+            <div class="text-xl-end">
+                <span class="rep-badge-soft d-inline-block mb-2"><i class="bi bi-calendar-range"></i> {{ fecha_desde_fmt }} → {{ fecha_hasta_fmt }}</span><br>
+                <span class="small text-muted">{{ n_dias_informe }} día{% if n_dias_informe != 1 %}s{% endif %} en el rango analizado</span>
+            </div>
+        </div>
+    </header>
+
+    <p class="mb-3">
+        <a class="rep-help-toggle link-secondary text-decoration-none" data-bs-toggle="collapse" href="#repAyudaEstOcup" role="button" aria-expanded="false" aria-controls="repAyudaEstOcup">
+            <i class="bi bi-info-circle"></i> Cómo se calculan estos indicadores
+        </a>
+    </p>
+    <div class="collapse mb-4" id="repAyudaEstOcup">
+        <div class="rep-card-lite card border-0">
+            <div class="card-body small text-muted lh-lg mb-0">
+                <strong>1. Ocupación diaria (hoy)</strong> usa el <strong>estado físico actual</strong> de cada habitación en el sistema (ocupada, libre, reservada, etc.).<br>
+                <strong>2. Evolución</strong> mide por cada noche calendario cuántas habitaciones tienen una reserva <strong>no cancelada</strong> que cubre esa noche (cupo nocturno), el % sobre el inventario total y la suma de <strong>huéspedes declarados</strong> en esas estancias (puede contar varias veces si la estadía abarca varias noches). El bloque «periodo anterior» compara con los <strong>mismos días de calendario</strong> inmediatamente anteriores al rango elegido.<br>
+                <strong>3. Por tipo</strong> promedia el % de ocupación de cada tipo sobre sus habitaciones físicas en el rango, e incluye la suma de <strong>precio total</strong> de reservas con <strong>fecha de entrada</strong> en el período (no canceladas).
+            </div>
+        </div>
+    </div>
+
+    <div class="rep-card-lite card mb-4">
+        <div class="card-header">
+            <h2 class="mb-0">Filtrar período (evolución y por tipo)</h2>
+            <p class="small text-muted mb-0 mt-1">Sin fechas en la URL se muestran los últimos 7 días hasta hoy. La sección «ocupación diaria» siempre refleja <strong>hoy</strong> ({{ hoy_fmt }}).</p>
+        </div>
+        <div class="card-body pb-4">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">Desde fecha</label>
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">Hasta fecha</label>
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+                </div>
+                <div class="col-12 col-md-4 d-grid">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Aplicar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <p class="rep-section-label px-1 mb-2">1. Ocupación diaria (hoy)</p>
+    <p class="small text-muted mb-3">Control de disponibilidad según estado actual de las habitaciones · <strong>{{ hoy_fmt }}</strong></p>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon text-danger bg-danger-subtle"><i class="bi bi-door-closed"></i></div>
+                <div class="rep-kpi-title">Ocupadas</div>
+                <div class="rep-kpi-value text-danger">{{ n_ocupadas }}</div>
+                <p class="rep-kpi-hint mb-0">Huésped dentro (estado «Ocupada»).</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon text-success bg-success-subtle"><i class="bi bi-door-open"></i></div>
+                <div class="rep-kpi-title">Libres</div>
+                <div class="rep-kpi-value text-success">{{ n_libres }}</div>
+                <p class="rep-kpi-hint mb-0">Disponible + en limpieza.</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon"><i class="bi bi-bookmark-check"></i></div>
+                <div class="rep-kpi-title">Reservadas</div>
+                <div class="rep-kpi-value">{{ n_reservadas }}</div>
+                <p class="rep-kpi-hint mb-0">Asignadas sin check-in.</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rep-kpi h-100">
+                <div class="rep-kpi-icon text-secondary bg-secondary-subtle"><i class="bi bi-tools"></i></div>
+                <div class="rep-kpi-title">Mantenimiento</div>
+                <div class="rep-kpi-value">{{ n_mantenimiento }}</div>
+                <p class="rep-kpi-hint mb-0">Fuera de venta temporal.</p>
+            </div>
+        </div>
+    </div>
+    <div class="rep-card-lite card mb-5">
+        <div class="card-body py-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h3 class="h6 mb-1">Porcentaje de ocupación diaria (física)</h3>
+                    <p class="small text-muted mb-0">Ocupadas sobre inventario total ({{ total_habitaciones }} habitaciones).</p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <span class="display-6 fw-bold text-primary">{{ pct_ocupacion_diaria|floatformat:1 }}%</span>
+                </div>
+            </div>
+            <div class="progress mt-3 rounded-pill" style="height: 0.65rem;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ pct_ocupacion_diaria|stringformat:".2f" }}%; max-width: 100%;" aria-valuenow="{{ pct_ocupacion_diaria|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+
+    <p class="rep-section-label px-1 mb-2">2. Ocupación en el período (evolución)</p>
+    <p class="small text-muted mb-3">Cupo nocturno por día, promedio de % de ocupación y huéspedes-noche acumulados; comparación con el periodo anterior de igual duración ({{ prev_desde_fmt }} → {{ prev_hasta_fmt }}).</p>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="rep-chip h-100">
+                <span class="small text-muted text-uppercase fw-semibold" style="font-size:.65rem;">Promedio % ocupación (noches)</span>
+                <span class="rep-chip-num">{{ promedio_ocupacion_pct|floatformat:1 }}%</span>
+                <span class="small text-muted mt-1">Periodo anterior: {{ promedio_ocupacion_pct_prev|floatformat:1 }}% · {% if delta_promedio_pct > 0 %}<span class="text-success">+{{ delta_promedio_pct|floatformat:1 }}</span>{% elif delta_promedio_pct < 0 %}<span class="text-danger">{{ delta_promedio_pct|floatformat:1 }}</span>{% else %}sin cambio{% endif %} pts.</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="rep-chip h-100">
+                <span class="small text-muted text-uppercase fw-semibold" style="font-size:.65rem;">Huéspedes-noche (suma diaria)</span>
+                <span class="rep-chip-num">{{ total_huespedes_noches }}</span>
+                <span class="small text-muted mt-1">Anterior: {{ total_huespedes_noches_prev }} · {% if delta_huespedes_noches > 0 %}<span class="text-success">+{{ delta_huespedes_noches }}</span>{% elif delta_huespedes_noches < 0 %}<span class="text-danger">{{ delta_huespedes_noches }}</span>{% else %}igual{% endif %}</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="rep-chip h-100">
+                <span class="small text-muted text-uppercase fw-semibold" style="font-size:.65rem;">Inventario físico</span>
+                <span class="rep-chip-num">{{ total_habitaciones }}</span>
+                <span class="small text-muted mt-1">Base para el % de ocupación por noche.</span>
+            </div>
+        </div>
+    </div>
+    <div class="rep-card-lite card mb-5">
+        <div class="card-header pb-2">
+            <h2 class="mb-0">Detalle día a día</h2>
+            <p class="small text-muted mb-0">Noches vendidas = habitaciones distintas con reserva activa esa noche.</p>
+        </div>
+        <div class="card-body px-0 pt-0 pb-0">
+            <div class="rep-table-wrap border-top">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-3">Fecha</th>
+                            <th class="text-end">Noches vendidas</th>
+                            <th class="text-end">% ocupación</th>
+                            <th class="text-end px-3">Huéspedes (estancias)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dia in serie_ocupacion %}
+                        <tr>
+                            <td class="px-3">{{ dia.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ dia.noches }}</td>
+                            <td class="text-end">{{ dia.pct|floatformat:1 }}%</td>
+                            <td class="text-end px-3">{{ dia.huespedes }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center py-4">Sin habitaciones en inventario o sin datos.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <p class="rep-section-label px-1 mb-2">3. Ocupación por tipo de habitación</p>
+    <p class="small text-muted mb-3">Promedio de ocupación nocturna por tipo en el período filtrado e ingresos por precio de reservas con entrada en el mismo rango.</p>
+    <div class="rep-card-lite card mb-4">
+        <div class="card-body px-0 pt-0 pb-0">
+            <div class="rep-table-wrap">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-3">Tipo</th>
+                            <th class="text-end">Habitaciones</th>
+                            <th class="text-end">Ocupación media</th>
+                            <th class="text-end px-3">Ingresos (precio reservas)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in por_tipo_rows %}
+                        <tr>
+                            <td class="px-3">{{ row.tipo_display }}</td>
+                            <td class="text-end">{{ row.n_habitaciones }}</td>
+                            <td class="text-end">{{ row.ocupacion_promedio_pct|floatformat:1 }}%</td>
+                            <td class="text-end fw-semibold px-3">{{ MONEDA_SIMBOLO }}{{ row.ingresos|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center py-4">No hay habitaciones clasificadas por tipo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <a href="{% url 'reportes' %}" class="btn btn-outline-secondary rounded-pill px-4">
+        <i class="bi bi-arrow-left"></i> Volver al panel de reportes
+    </a>
+</div>
+{% endblock %}

@@ -238,8 +238,7 @@ class Huesped(models.Model):
     """
     Modelo que representa a un huésped (cliente) del hotel.
 
-    Almacena información personal, de contacto y preferencias
-    del huésped para mejorar el servicio.
+    Almacena información personal del huésped para el registro y el servicio.
     """
 
     TIPO_DOC_DNI = 'dni'
@@ -360,6 +359,21 @@ class Huesped(models.Model):
         (SEXO_PREFER_NO, 'Prefiero no decir'),
     ]
 
+    MOTIVO_VIAJE_TURISMO = 'turismo'
+    MOTIVO_VIAJE_NEGOCIOS = 'negocios'
+    MOTIVO_VIAJE_TRABAJO = 'trabajo'
+    MOTIVO_VIAJE_ESTUDIOS = 'estudios'
+    MOTIVO_VIAJE_VISITA_FAMILIAR = 'visita_familiar'
+    MOTIVO_VIAJE_SALUD = 'salud'
+    MOTIVO_VIAJE_CHOICES = [
+        (MOTIVO_VIAJE_TURISMO, 'Turismo'),
+        (MOTIVO_VIAJE_NEGOCIOS, 'Negocios'),
+        (MOTIVO_VIAJE_TRABAJO, 'Trabajo'),
+        (MOTIVO_VIAJE_ESTUDIOS, 'Estudios'),
+        (MOTIVO_VIAJE_VISITA_FAMILIAR, 'Visita familiar'),
+        (MOTIVO_VIAJE_SALUD, 'Salud'),
+    ]
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -395,12 +409,19 @@ class Huesped(models.Model):
         help_text='Número del DNI, CE, pasaporte, etc. (único por hotel junto al tipo)',
     )
 
-    lugar_procedencia = models.CharField(
+    lugar_residencia = models.CharField(
         max_length=200,
-        verbose_name='Lugar de procedencia',
-        help_text='Ciudad o lugar de origen del huésped',
+        verbose_name='Lugar de residencia',
+        help_text='Ciudad o lugar de residencia habitual del huésped',
     )
-    
+
+    motivo_viaje = models.CharField(
+        max_length=30,
+        choices=MOTIVO_VIAJE_CHOICES,
+        default=MOTIVO_VIAJE_TURISMO,
+        verbose_name='Motivo de viaje',
+    )
+
     fecha_nacimiento = models.DateField(
         null=True,
         blank=True,
@@ -420,38 +441,7 @@ class Huesped(models.Model):
         choices=SEXO_CHOICES,
         verbose_name='Sexo',
     )
-    
-    # ========== CAMPOS DE CONTACTO ==========
-    
-    email = models.EmailField(
-        blank=True,
-        default='',
-        verbose_name='Email',
-        help_text='Correo electrónico de contacto (opcional)'
-    )
 
-    telefono = models.CharField(
-        max_length=20,
-        blank=True,
-        default='',
-        verbose_name='Teléfono',
-        help_text='Número de teléfono de contacto (opcional)'
-    )
-    
-    # ========== CAMPOS OPCIONALES (Preferencias y Notas) ==========
-    
-    preferencias = models.TextField(
-        blank=True,
-        verbose_name='Preferencias',
-        help_text='Preferencias especiales del huésped (cama extra, piso alto, etc.)'
-    )
-    
-    notas = models.TextField(
-        blank=True,
-        verbose_name='Notas',
-        help_text='Notas adicionales sobre el huésped'
-    )
-    
     # ========== CAMPOS DE AUDITORÍA ==========
     
     fecha_registro = models.DateTimeField(

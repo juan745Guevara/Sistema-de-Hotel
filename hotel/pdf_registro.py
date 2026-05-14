@@ -14,6 +14,40 @@ def _p(text: str) -> str:
     return escape(str(text if text is not None else ''))
 
 
+# Orden de columnas: estadía + datos de huésped mostrados en el libro + cierre estadía.
+_LIBRO_REGISTRO_HEADERS = (
+    'N°',
+    'Ingreso',
+    'Salida',
+    'Tipo doc.',
+    'N° documento',
+    'Nombres',
+    'Apellidos',
+    'F. nac.',
+    'Nacionalidad',
+    'Sexo',
+    'Residencia',
+    'Motivo viaje',
+    'Hab.',
+)
+
+_LIBRO_REGISTRO_KEYS = (
+    'orden',
+    'entrada',
+    'salida',
+    'tipo_documento',
+    'documento_identidad',
+    'nombre',
+    'apellidos',
+    'fecha_nacimiento',
+    'nacionalidad',
+    'sexo',
+    'lugar_residencia',
+    'motivo_viaje',
+    'habitacion',
+)
+
+
 def build_registro_pdf(
     *,
     titulo_hotel: str,
@@ -22,18 +56,17 @@ def build_registro_pdf(
     filas: list[dict],
 ) -> bytes:
     """
-    filas: dicts con claves orden, entrada, salida, documento, nombre_completo,
-    nacionalidad, procedencia, habitacion, num_huespedes, reserva_id
+    filas: dicts con las claves de _LIBRO_REGISTRO_KEYS (ver _filas_reporte_registro en views).
     """
     buf = BytesIO()
     page_size = landscape(A4)
     doc = SimpleDocTemplate(
         buf,
         pagesize=page_size,
-        leftMargin=12 * mm,
-        rightMargin=12 * mm,
-        topMargin=12 * mm,
-        bottomMargin=12 * mm,
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=10 * mm,
+        bottomMargin=10 * mm,
         title='Registro',
     )
     styles = getSampleStyleSheet()
@@ -55,15 +88,21 @@ def build_registro_pdf(
     cell_style = ParagraphStyle(
         'C',
         parent=styles['Normal'],
-        fontSize=7,
-        leading=9,
+        fontSize=8,
+        leading=10,
     )
     header_style = ParagraphStyle(
         'H',
         parent=styles['Normal'],
-        fontSize=7,
-        leading=9,
+        fontSize=8,
+        leading=10,
         textColor=colors.white,
+    )
+    pie_style = ParagraphStyle(
+        'Pie',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=12,
     )
 
     story = []
@@ -71,64 +110,34 @@ def build_registro_pdf(
     story.append(Paragraph(_p(subtitulo_periodo), sub_style))
     story.append(
         Paragraph(
-            '<i>Ingresos al establecimiento por fecha y hora de check-in (orden cronológico). '
-            'Salida: fecha y hora de check-out si consta en el sistema.</i>',
+            '<i>Ingresos por fecha y hora de check-in. Datos del huésped según ficha en el sistema. '
+            'Salida: check-out registrado.</i>',
             sub_style,
         )
     )
 
-    headers = [
-        'N°',
-        'Fecha y hora ingreso',
-        'Fecha y hora salida',
-        'Documento',
-        'Apellidos y nombres',
-        'Nacionalidad',
-        'Procedencia',
-        'Hab.',
-        'Pers.',
-        'Reserva',
-    ]
-    data = [[Paragraph(_p(h), header_style) for h in headers]]
+    data = [[Paragraph(_p(h), header_style) for h in _LIBRO_REGISTRO_HEADERS]]
 
     for f in filas:
-        row = [
-            Paragraph(_p(str(f['orden'])), cell_style),
-            Paragraph(_p(f['entrada']), cell_style),
-            Paragraph(_p(f['salida']), cell_style),
-            Paragraph(_p(f['documento']), cell_style),
-            Paragraph(_p(f['nombre_completo']), cell_style),
-            Paragraph(_p(f['nacionalidad']), cell_style),
-            Paragraph(_p(f['procedencia']), cell_style),
-            Paragraph(_p(f['habitacion']), cell_style),
-            Paragraph(_p(str(f['num_huespedes'])), cell_style),
-            Paragraph(_p(str(f['reserva_id'])), cell_style),
-        ]
+        row = []
+        for key in _LIBRO_REGISTRO_KEYS:
+            val = f.get(key, '')
+            row.append(Paragraph(_p(val if val is not None else ''), cell_style))
         data.append(row)
 
-    tw = page_size[0] - 24 * mm
-    col_widths = [
-        8 * mm,
-        28 * mm,
-        28 * mm,
-        22 * mm,
-        52 * mm,
-        22 * mm,
-        38 * mm,
-        12 * mm,
-        12 * mm,
-        14 * mm,
-    ]
-    scale = tw / sum(col_widths)
-    col_widths = [w * scale for w in col_widths]
+    tw = page_size[0] - 16 * mm
+    n = len(_LIBRO_REGISTRO_KEYS)
+    col_widths = [tw / n] * n
 
     tbl = Table(data, colWidths=col_widths, repeatRows=1)
+    last = n - 1
+    center_tail_start = last
     tbl.setStyle(
         TableStyle(
             [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
                 ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-                ('ALIGN', (7, 0), (-1, -1), 'CENTER'),
+                ('ALIGN', (center_tail_start, 0), (last, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
@@ -137,7 +146,7 @@ def build_registro_pdf(
     )
     story.append(tbl)
     story.append(Spacer(1, 6 * mm))
-    story.append(Paragraph(_p(pie_generacion), styles['Normal']))
+    story.append(Paragraph(_p(pie_generacion), pie_style))
     if not filas:
         story.append(Spacer(1, 4 * mm))
         story.append(

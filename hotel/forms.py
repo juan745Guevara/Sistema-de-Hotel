@@ -31,11 +31,18 @@ def normalizar_y_validar_documento_huesped(tipo: str, raw: str) -> str:
 
 
 class HuespedForm(forms.ModelForm):
-    """Registro básico de huésped: tipo de documento, número, nombres y procedencia."""
+    """Registro básico de huésped: tipo de documento, número, nombres, residencia y motivo de viaje."""
 
     class Meta:
         model = Huesped
-        fields = ['tipo_documento', 'documento_identidad', 'nombre', 'apellidos', 'lugar_procedencia']
+        fields = [
+            'tipo_documento',
+            'documento_identidad',
+            'nombre',
+            'apellidos',
+            'lugar_residencia',
+            'motivo_viaje',
+        ]
         widgets = {
             'tipo_documento': forms.Select(attrs={'class': 'form-select'}),
             'documento_identidad': forms.TextInput(
@@ -43,19 +50,33 @@ class HuespedForm(forms.ModelForm):
             ),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'given-name'}),
             'apellidos': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'family-name'}),
-            'lugar_procedencia': forms.TextInput(
+            'lugar_residencia': forms.TextInput(
                 attrs={'class': 'form-control', 'autocomplete': 'address-level2'}
             ),
+            'motivo_viaje': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def clean(self):
         cleaned = super().clean()
         tipo = cleaned.get('tipo_documento')
         raw = cleaned.get('documento_identidad')
+        if raw is None or not str(raw).strip():
+            self.add_error('documento_identidad', 'Ingrese el número de documento.')
+            return cleaned
         try:
             cleaned['documento_identidad'] = normalizar_y_validar_documento_huesped(tipo, raw)
         except ValidationError as e:
             self.add_error('documento_identidad', e.messages[0])
+        nombre = (cleaned.get('nombre') or '').strip()
+        if not nombre:
+            self.add_error('nombre', 'Los nombres son obligatorios.')
+        else:
+            cleaned['nombre'] = nombre
+        apellidos = (cleaned.get('apellidos') or '').strip()
+        if not apellidos:
+            self.add_error('apellidos', 'Los apellidos son obligatorios.')
+        else:
+            cleaned['apellidos'] = apellidos
         return cleaned
 
 
@@ -98,6 +119,7 @@ class ReservaForm(forms.ModelForm):
     huesped_documento = forms.CharField(
         label='Número de documento',
         max_length=50,
+        required=True,
         widget=forms.TextInput(
             attrs={
                 'class': 'form-control',
@@ -109,29 +131,37 @@ class ReservaForm(forms.ModelForm):
     huesped_nombre = forms.CharField(
         label='Nombres',
         max_length=100,
+        required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'given-name'}),
     )
     huesped_apellidos = forms.CharField(
         label='Apellidos',
         max_length=100,
+        required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'family-name'}),
     )
-    huesped_lugar_procedencia = forms.CharField(
-        label='Lugar de procedencia',
+    huesped_lugar_residencia = forms.CharField(
+        label='Lugar de residencia',
         max_length=200,
         widget=forms.TextInput(
             attrs={
                 'class': 'form-control',
-                'placeholder': 'Ciudad o país de origen',
+                'placeholder': 'Ciudad o país de residencia',
                 'autocomplete': 'address-level2',
             }
         ),
     )
 
+    huesped_motivo_viaje = forms.ChoiceField(
+        label='Motivo de viaje',
+        choices=Huesped.MOTIVO_VIAJE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
     huesped_nacionalidad = forms.ChoiceField(
         label='Nacionalidad',
         required=False,
-        choices=[('', '—')] + list(Huesped.NACIONALIDADES_CHOICES),
+        choices=[('', 'Seleccione nacionalidad')] + list(Huesped.NACIONALIDADES_CHOICES),
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
 
@@ -187,7 +217,8 @@ class ReservaForm(forms.ModelForm):
             self.fields['huesped_documento'].initial = h.documento_identidad
             self.fields['huesped_nombre'].initial = h.nombre
             self.fields['huesped_apellidos'].initial = h.apellidos
-            self.fields['huesped_lugar_procedencia'].initial = h.lugar_procedencia
+            self.fields['huesped_lugar_residencia'].initial = h.lugar_residencia
+            self.fields['huesped_motivo_viaje'].initial = h.motivo_viaje
             self.fields['huesped_nacionalidad'].initial = h.nacionalidad
             self.fields['huesped_fecha_nacimiento'].initial = h.fecha_nacimiento
             self.fields['huesped_sexo'].initial = h.sexo
@@ -201,7 +232,8 @@ class ReservaForm(forms.ModelForm):
                 'huesped_documento',
                 'huesped_nombre',
                 'huesped_apellidos',
-                'huesped_lugar_procedencia',
+                'huesped_lugar_residencia',
+                'huesped_motivo_viaje',
                 'huesped_nacionalidad',
                 'huesped_fecha_nacimiento',
                 'huesped_sexo',
@@ -226,8 +258,23 @@ class ReservaForm(forms.ModelForm):
         habitacion = cleaned_data.get('habitacion')
         numero_huespedes = cleaned_data.get('numero_huespedes')
 
+        nombre = (cleaned_data.get('huesped_nombre') or '').strip()
+        if not nombre:
+            self.add_error('huesped_nombre', 'Los nombres son obligatorios.')
+        else:
+            cleaned_data['huesped_nombre'] = nombre
+
+        apellidos = (cleaned_data.get('huesped_apellidos') or '').strip()
+        if not apellidos:
+            self.add_error('huesped_apellidos', 'Los apellidos son obligatorios.')
+        else:
+            cleaned_data['huesped_apellidos'] = apellidos
+
         tipo = cleaned_data.get('huesped_tipo_documento') or Huesped.TIPO_DOC_DNI
         doc_raw = cleaned_data.get('huesped_documento')
+        if doc_raw is None or not str(doc_raw).strip():
+            self.add_error('huesped_documento', 'Ingrese el número de documento.')
+            return cleaned_data
         try:
             doc = normalizar_y_validar_documento_huesped(tipo, doc_raw)
         except ValidationError as e:
@@ -235,15 +282,18 @@ class ReservaForm(forms.ModelForm):
             return cleaned_data
         cleaned_data['huesped_documento'] = doc
 
-        # Regla pedida: si el tipo de documento es DNI, nacionalidad = Perú.
+        allowed_nac = {c[0] for c in Huesped.NACIONALIDADES_CHOICES}
+        # DNI peruano: nacionalidad siempre Perú. Otros documentos: nacionalidad obligatoria.
         if tipo == Huesped.TIPO_DOC_DNI:
             cleaned_data['huesped_nacionalidad'] = Huesped.NACIONALIDAD_PERU
         else:
-            nac = cleaned_data.get('huesped_nacionalidad') or ''
-            allowed = {c[0] for c in Huesped.NACIONALIDADES_CHOICES}
-            if nac not in allowed:
+            nac = (cleaned_data.get('huesped_nacionalidad') or '').strip()
+            if not nac:
+                self.add_error('huesped_nacionalidad', 'Seleccione la nacionalidad.')
+            elif nac not in allowed_nac:
                 self.add_error('huesped_nacionalidad', 'Seleccione una nacionalidad válida.')
-            cleaned_data['huesped_nacionalidad'] = nac
+            else:
+                cleaned_data['huesped_nacionalidad'] = nac
 
         if self.instance.pk and self.instance.huesped_id:
             actual = self.instance.huesped
@@ -314,18 +364,18 @@ class ReservaForm(forms.ModelForm):
                 defaults={
                     'nombre': d['huesped_nombre'],
                     'apellidos': d['huesped_apellidos'],
-                    'lugar_procedencia': d['huesped_lugar_procedencia'],
+                    'lugar_residencia': d['huesped_lugar_residencia'],
+                    'motivo_viaje': d['huesped_motivo_viaje'],
                     'nacionalidad': d.get('huesped_nacionalidad') or 'Perú',
                     'fecha_nacimiento': d.get('huesped_fecha_nacimiento'),
                     'sexo': d.get('huesped_sexo') or None,
-                    'email': '',
-                    'telefono': '',
                 },
             )
             if not created:
                 huesped.nombre = d['huesped_nombre']
                 huesped.apellidos = d['huesped_apellidos']
-                huesped.lugar_procedencia = d['huesped_lugar_procedencia']
+                huesped.lugar_residencia = d['huesped_lugar_residencia']
+                huesped.motivo_viaje = d['huesped_motivo_viaje']
                 huesped.tipo_documento = tipo
                 huesped.documento_identidad = doc
                 huesped.nacionalidad = d.get('huesped_nacionalidad') or Huesped.NACIONALIDAD_PERU
@@ -335,7 +385,8 @@ class ReservaForm(forms.ModelForm):
                     update_fields=[
                         'nombre',
                         'apellidos',
-                        'lugar_procedencia',
+                        'lugar_residencia',
+                        'motivo_viaje',
                         'tipo_documento',
                         'documento_identidad',
                         'nacionalidad',
@@ -351,7 +402,8 @@ class ReservaForm(forms.ModelForm):
             huesped.documento_identidad = doc
             huesped.nombre = d['huesped_nombre']
             huesped.apellidos = d['huesped_apellidos']
-            huesped.lugar_procedencia = d['huesped_lugar_procedencia']
+            huesped.lugar_residencia = d['huesped_lugar_residencia']
+            huesped.motivo_viaje = d['huesped_motivo_viaje']
             huesped.nacionalidad = d.get('huesped_nacionalidad') or 'Perú'
             huesped.fecha_nacimiento = d.get('huesped_fecha_nacimiento')
             huesped.sexo = d.get('huesped_sexo') or None
@@ -361,7 +413,8 @@ class ReservaForm(forms.ModelForm):
                     'documento_identidad',
                     'nombre',
                     'apellidos',
-                    'lugar_procedencia',
+                    'lugar_residencia',
+                    'motivo_viaje',
                     'nacionalidad',
                     'fecha_nacimiento',
                     'sexo',
@@ -490,7 +543,7 @@ class CheckOutForm(forms.ModelForm):
             'notas',
         ]
         labels = {
-            'total_pagado': 'Total pagado (soles)',
+            'total_pagado': 'Total a Pagar (soles)',
             'mixto_efectivo': 'Mixto: efectivo (S/)',
             'mixto_tarjeta': 'Mixto: tarjeta (S/)',
             'mixto_yape': 'Mixto: Yape (S/)',

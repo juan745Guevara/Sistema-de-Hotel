@@ -29,7 +29,8 @@ class CancelarReservaTests(TenantFlowTestCase):
                 'huesped_documento': '44411122',
                 'huesped_nombre': 'Carla',
                 'huesped_apellidos': 'Cancel',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -61,7 +62,8 @@ class CancelarReservaTests(TenantFlowTestCase):
                 'huesped_documento': '33322211',
                 'huesped_nombre': 'Ben',
                 'huesped_apellidos': 'Check',
-                'huesped_lugar_procedencia': 'Arequipa',
+                'huesped_lugar_residencia': 'Arequipa',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -103,7 +105,8 @@ class EditarReservaBloqueadaTests(TenantFlowTestCase):
                 'huesped_documento': '77788899',
                 'huesped_nombre': 'Dana',
                 'huesped_apellidos': 'Edit',
-                'huesped_lugar_procedencia': 'Trujillo',
+                'huesped_lugar_residencia': 'Trujillo',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -142,7 +145,8 @@ class BusquedaRapidaTests(TenantFlowTestCase):
                 'huesped_documento': '12121212',
                 'huesped_nombre': 'Eva',
                 'huesped_apellidos': 'Busq',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab2.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -183,7 +187,8 @@ class EliminarHabitacionTests(TenantFlowTestCase):
                 'huesped_documento': '65656565',
                 'huesped_nombre': 'Fio',
                 'huesped_apellidos': 'Res',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -209,7 +214,8 @@ class CheckinDepositoTests(TenantFlowTestCase):
                 'huesped_documento': '41414141',
                 'huesped_nombre': 'Gus',
                 'huesped_apellidos': 'Dep',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -249,7 +255,8 @@ class CheckoutMixtoFlowTests(TenantFlowTestCase):
                 'huesped_documento': '30303030',
                 'huesped_nombre': 'Helo',
                 'huesped_apellidos': 'Mix',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -307,7 +314,8 @@ class DocumentoExtranjeroTests(TenantFlowTestCase):
                 'huesped_documento': '001-ab12345',
                 'huesped_nombre': 'Jane',
                 'huesped_apellidos': 'Extranj',
-                'huesped_lugar_procedencia': 'Buenos Aires',
+                'huesped_lugar_residencia': 'Buenos Aires',
+                'huesped_motivo_viaje': 'turismo',
                 'huesped_nacionalidad': 'Colombiano',
                 'habitacion': str(self.hab2.pk),
                 'fecha_entrada': hoy.isoformat(),
@@ -324,10 +332,17 @@ class DocumentoExtranjeroTests(TenantFlowTestCase):
         self.assertEqual(h.nombre, 'Jane')
 
 
-class ReporteOcupacionAccessTests(TenantFlowTestCase):
-    def test_reporte_ocupacion_ok_admin(self):
+class ReporteIngresosAccessTests(TenantFlowTestCase):
+    def test_reporte_ingresos_ok_admin(self):
         self._login_admin()
-        r = self.client.get(reverse('reporte_ocupacion'))
+        r = self.client.get(reverse('reporte_ingresos'))
+        self.assertEqual(r.status_code, 200)
+
+
+class ReporteEstadisticasOcupacionAccessTests(TenantFlowTestCase):
+    def test_reporte_estadisticas_ocupacion_ok_admin(self):
+        self._login_admin()
+        r = self.client.get(reverse('reporte_estadisticas_ocupacion'))
         self.assertEqual(r.status_code, 200)
 
 
@@ -356,7 +371,8 @@ class CrearReservaCapacidadInvalidaTests(TenantFlowTestCase):
                 'huesped_documento': '18181818',
                 'huesped_nombre': 'Ivo',
                 'huesped_apellidos': 'Cap',
-                'huesped_lugar_procedencia': 'Lima',
+                'huesped_lugar_residencia': 'Lima',
+                'huesped_motivo_viaje': 'turismo',
                 'habitacion': str(self.hab.pk),
                 'fecha_entrada': hoy.isoformat(),
                 'fecha_salida': manana.isoformat(),
@@ -415,9 +431,7 @@ class ListaCheckinsFiltroDiaTests(TenantFlowTestCase):
             nombre='J',
             apellidos='K',
             documento_identidad='91919191',
-            lugar_procedencia='Lima',
-            email='',
-            telefono='',
+            lugar_residencia='Lima',
         )
         hoy = timezone.localdate()
         manana = hoy + timedelta(days=1)
